@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Russian language pack">
+  <defs>
+    <linearGradient id="ru-bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3d7bf0"/>
+      <stop offset="1" stop-color="#2058c8"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#ru-bg)"/>
+  <path d="M44 17v30h-6L26 30.5V47h-6V17h6l12 16.5V17h6Z" fill="#ffffff"/>
+</svg>

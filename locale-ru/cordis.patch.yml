@@ -1,0 +1,3 @@
+- insert:
+    - id: locale-ru
+      name: '@apopov-app/dsh-locale-ru'

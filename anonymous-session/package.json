@@ -1,0 +1,57 @@
+{
+  "name": "@apopov-app/dsh-anonymous-session",
+  "version": "1.0.2",
+  "description": "Sidebar launcher that opens the standard DSH conversation in a project-free anonymous workspace.",
+  "license": "MIT",
+  "author": "apopov-app",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "anonymous",
+    "session"
+  ],
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apopov-app/dsh-plugins.git",
+    "directory": "anonymous-session"
+  },
+  "homepage": "https://github.com/apopov-app/dsh-plugins/tree/main/anonymous-session#readme",
+  "bugs": {
+    "url": "https://github.com/apopov-app/dsh-plugins/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}

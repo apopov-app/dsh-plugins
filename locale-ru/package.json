@@ -1,0 +1,56 @@
+{
+  "name": "@apopov-app/dsh-locale-ru",
+  "version": "1.0.3",
+  "description": "Russian language pack for the DSH Web client: registers the ru language and translates the shipped client UI.",
+  "license": "MIT",
+  "author": "apopov-app",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "i18n",
+    "russian",
+    "locale",
+    "русский"
+  ],
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apopov-app/dsh-plugins.git",
+    "directory": "locale-ru"
+  },
+  "homepage": "https://github.com/apopov-app/dsh-plugins/tree/main/locale-ru#readme",
+  "bugs": {
+    "url": "https://github.com/apopov-app/dsh-plugins/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

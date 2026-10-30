@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Anonymous session",
+    "description": "A sidebar button that opens the standard conversation in a project-free workspace, without a directory picker."
+  }
+}

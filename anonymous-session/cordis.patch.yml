@@ -1,0 +1,3 @@
+- insert:
+    - id: anonymous-session
+      name: '@apopov-app/dsh-anonymous-session'
