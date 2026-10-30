@@ -66,6 +66,18 @@ plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/loc
 После установки/обновления клиентских бандлов **обновите страницу Harness** (⌘R); изменения
 Host-половины подхватываются при следующем запуске приложения.
 
+### Установка без npm (из GitHub)
+
+Плагины можно ставить напрямую из этого репозитория: менеджер плагинов использует pnpm и понимает git-спеки. Для монорепозитория нужен `path:`:
+
+```sh
+SHA=$(git ls-remote https://github.com/apopov-app/dsh-plugins.git refs/heads/main | cut -f1)
+dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh-plugins.git#${SHA}&path:/anonymous-session"
+dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh-plugins.git#${SHA}&path:/locale-ru"
+```
+
+Те же строки принимает **Plugins → Add plugin** в Web-интерфейсе. Пинить стоит полный SHA, а не ветку: установка воспроизводима и не поменяется от новых пушей. Проверено: `pnpm add` ставит оба пакета из этого репозитория, `dsh.bundle` и клиентские бандлы на месте.
+
 ## Требования
 
 - DeepSeek Harness Desktop, версия клиента **0.2.1-rc.5** (языковой пакет собран из
