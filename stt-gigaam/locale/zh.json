@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "GigaAM 俄语语音（本地）",
+    "description": "语音输入的本地俄语识别提供方：通过 sherpa-onnx 在本地运行 Sber GigaAM v3 CTC。"
+  }
+}

@@ -12,6 +12,7 @@ DSH-бандлы: папка плагина и есть его источник,
 |---|---|---|
 | [`anonymous-session/`](anonymous-session/README.md) | `@apopov-app/dsh-anonymous-session` 1.0.2 | Кнопка **«Новая анонимная сессия»** в левом сайдбаре: открывает стандартный интерфейс диалога в отдельном рабочем пространстве без выбора папки проекта. |
 | [`locale-ru/`](locale-ru/README.md) | `@apopov-app/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
+| [`stt-gigaam/`](stt-gigaam/README.md) | `@apopov-app/dsh-stt-gigaam` 1.0.0 | Локальный провайдер распознавания русской речи для голосового ввода: GigaAM v3 (CTC, ONNX) через `sherpa-onnx`, без облака. |
 
 ### anonymous-session
 
@@ -36,6 +37,18 @@ DSH-бандлы: папка плагина и есть его источник,
   [`locale-ru/tooling/`](locale-ru/tooling/README.md). Экстрактору нужен чекаут клиента — он уже
   склонирован в [`../core`](../core) (тег `dsh-v0.2.1-rc.5`).
 - Подробности: [`locale-ru/README.md`](locale-ru/README.md).
+
+### stt-gigaam
+
+- Host-only провайдер для экспериментального **голосового ввода** (`ctx.speechToText`):
+  второй распознаватель рядом со штатным SenseVoiceSmall, с единственным языковым
+  хинтом `ru` — штатный провайдер знает только `zh`/`en`/`yue`/`ja`/`ko`.
+- Модель: **GigaAM v3** от Сбера (MIT), ONNX-конверсия для sherpa-onnx, ~214 МиБ;
+  скачивается один раз в `$DSH_HOME/speech-to-text-gigaam`, проверяется по размеру и
+  SHA-256, считается в worker-потоке (инференс ~0.3 с на 11 с речи на Apple Silicon).
+- Требует включённого бандла **Voice input** (Experimental) — без сервиса
+  `speechToText` плагин остаётся pending. Полное описание — в
+  [`stt-gigaam/README.md`](stt-gigaam/README.md).
 
 ## Исходники клиента
 

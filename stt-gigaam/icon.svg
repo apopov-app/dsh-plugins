@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="GigaAM Russian speech recognition">
+  <defs>
+    <linearGradient id="gigaam-bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3d7bf0"/>
+      <stop offset="1" stop-color="#2058c8"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#gigaam-bg)"/>
+  <rect x="26" y="14" width="12" height="22" rx="6" fill="#ffffff"/>
+  <path d="M20 32a12 12 0 0 0 24 0M32 44v6M26 50h12" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
+</svg>
