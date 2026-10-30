@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "俄语语音回复（本地）",
+    "description": "speak_summary 工具与扬声器开关：模型给出简短要点，由本地 Piper 声音离线朗读。"
+  }
+}

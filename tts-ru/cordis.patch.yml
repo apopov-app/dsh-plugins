@@ -1,0 +1,3 @@
+- insert:
+    - id: tts-ru
+      name: '@apopov-app/dsh-tts-ru'

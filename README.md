@@ -13,6 +13,7 @@ DSH-бандлы: папка плагина и есть его источник,
 | [`anonymous-session/`](anonymous-session/README.md) | `@apopov-app/dsh-anonymous-session` 1.0.2 | Кнопка **«Новая анонимная сессия»** в левом сайдбаре: открывает стандартный интерфейс диалога в отдельном рабочем пространстве без выбора папки проекта. |
 | [`locale-ru/`](locale-ru/README.md) | `@apopov-app/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
 | [`stt-gigaam/`](stt-gigaam/README.md) | `@apopov-app/dsh-stt-gigaam` 1.0.1 | Локальный провайдер распознавания русской речи для голосового ввода: GigaAM v3 (CTC, ONNX) через `sherpa-onnx`, без облака. |
+| [`tts-ru/`](tts-ru/README.md) | `@apopov-app/dsh-tts-ru` 1.0.0 | Локальная озвучка русских выжимок: инструмент `speak_summary` + переключатель-динамик, голоса Piper, без облака. |
 
 ### anonymous-session
 
@@ -49,6 +50,23 @@ DSH-бандлы: папка плагина и есть его источник,
 - Требует включённого бандла **Voice input** (Experimental) — без сервиса
   `speechToText` плагин остаётся pending. Полное описание — в
   [`stt-gigaam/README.md`](stt-gigaam/README.md).
+
+### tts-ru
+
+- Host-плагин + клиентская половина для **голосовых ответов**: модель вызывает
+  инструмент `speak_summary` с краткой выжимкой (2–3 предложения, до 400 символов),
+  а Host локально синтезирует её через `sherpa-onnx`/Piper (голоса `irina`,
+  `dmitri`, `denis`, `ruslan`, ~63 МБ каждый) и отдаёт WAV по авторизованному
+  маршруту `/api/tts-ru`.
+- В композере — иконка-динамик (`conversation.composer.dock`) с переключателем
+  режима и выбором голоса; выбор сохраняется в `$DSH_HOME/tts-ru/state.json`.
+  Пока режим включён, в системный промпт добавляется секция, которая просит
+  модель озвучивать именно выжимку, а не весь ответ.
+- Ответ модели с вызовом инструмента рендерится компактной карточкой
+  (`tool.call.toolview` для `speak_summary`) с плеером и автоплеем.
+- Требует сетевого доступа при первой озвучке (модель голоса и `espeak-ng-data`
+  скачиваются в рантайме; сами данные GPL/«unknown licence» — в репозиторий не
+  кладём, плагин остаётся MIT). Подробности — в [`tts-ru/README.md`](tts-ru/README.md).
 
 ## Исходники клиента
 
@@ -100,12 +118,13 @@ dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh
 
 ## Публикация в npm
 
-Все три пакета готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
+Все четыре пакета готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
 
 ```sh
 cd plugins/anonymous-session && npm pack --dry-run
 cd ../locale-ru && npm pack --dry-run
 cd ../stt-gigaam && npm pack --dry-run
+cd ../tts-ru && npm pack --dry-run
 ```
 
 Публикация (нужен npm-логин с доступом к scope `@apopov-app`; отложена, пока решается вопрос с восстановлением аккаунта):
@@ -115,11 +134,12 @@ npm login
 cd plugins/anonymous-session && npm publish --access public
 cd ../locale-ru && npm publish --access public
 cd ../stt-gigaam && npm publish --access public
+cd ../tts-ru && npm publish --access public
 ```
 
-Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3` и `@apopov-app/dsh-stt-gigaam@1.0.1` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
+Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3` `@apopov-app/dsh-stt-gigaam@1.0.1` и `@apopov-app/dsh-tts-ru@1.0.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
 
-`engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `stt-gigaam` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модель скачивается при первом Prepare.
+`engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `stt-gigaam` и `tts-ru` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модели скачиваются при первом использовании.
 
 ## Ограничения
 

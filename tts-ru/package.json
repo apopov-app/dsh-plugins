@@ -1,0 +1,63 @@
+{
+  "name": "@apopov-app/dsh-tts-ru",
+  "version": "1.0.0",
+  "description": "Local Russian text-to-speech for DSH: a speak_summary tool the model calls with a short spoken takeaway, synthesized offline with Piper voices and played through a speaker toggle in the composer.",
+  "license": "MIT",
+  "author": "apopov-app",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "text-to-speech",
+    "tts",
+    "russian",
+    "piper",
+    "offline"
+  ],
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "worker.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "seek-bzip": "2.0.0",
+    "sherpa-onnx-node": "1.13.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apopov-app/dsh-plugins.git",
+    "directory": "tts-ru"
+  },
+  "homepage": "https://github.com/apopov-app/dsh-plugins/tree/main/tts-ru#readme",
+  "bugs": {
+    "url": "https://github.com/apopov-app/dsh-plugins/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  }
+}
