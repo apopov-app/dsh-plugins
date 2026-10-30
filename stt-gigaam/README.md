@@ -63,9 +63,11 @@ voice UI hardcodes display names only for the SenseVoice hints (`auto`, `zh`, `e
 
 ## Limitations
 
-- One language (`ru`), one model: switching back to SenseVoice requires choosing one of
-  its language hints first, because the shared preference rejects a hint the selected
-  provider does not list.
+- One Russian model: the provider advertises the hints `auto` and `ru`. `auto` is the
+  shared default and is also offered by SenseVoice; pick it before switching back to
+  SenseVoice, because the shared preference rejects a hint the selected provider does
+  not list. The language picker shows the literal `ru` label for Russian (the
+  experimental voice UI hardcodes display names only for the SenseVoice hints).
 - The transcript is raw CTC output: no punctuation, no capitalisation, no timestamps.
 - First use needs network; later runs read the verified cache. Download progress is not
   resumable — a cancelled preparation restarts the file.

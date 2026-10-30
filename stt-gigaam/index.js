@@ -424,7 +424,11 @@ export function apply(ctx, config = {}) {
     id: PROVIDER_ID,
     name: 'GigaAM v3 (Russian, local)',
     location: 'host-local',
-    languages: ['ru'],
+    // 'auto' is accepted because the shared preference defaults to it and the
+    // language picker only offers the selected provider's hints; without it the
+    // first switch to this provider is rejected. The model is Russian-only, so
+    // every accepted hint produces Russian text.
+    languages: ['auto', 'ru'],
     downloadSources: resolveOrigins(config),
     setupEstimate: {
       recommendedDiskBytes: MODEL_BYTES + TOKENS_BYTES,

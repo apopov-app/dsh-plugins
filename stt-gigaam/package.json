@@ -1,6 +1,6 @@
 {
   "name": "@apopov-app/dsh-stt-gigaam",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Offline Russian speech recognition provider for DSH voice input: Sber GigaAM v3 (CTC, ONNX) running locally through sherpa-onnx.",
   "license": "MIT",
   "author": "apopov-app",
