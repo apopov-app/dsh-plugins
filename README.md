@@ -12,7 +12,7 @@ DSH-бандлы: папка плагина и есть его источник,
 |---|---|---|
 | [`anonymous-session/`](anonymous-session/README.md) | `@apopov-app/dsh-anonymous-session` 1.0.2 | Кнопка **«Новая анонимная сессия»** в левом сайдбаре: открывает стандартный интерфейс диалога в отдельном рабочем пространстве без выбора папки проекта. |
 | [`locale-ru/`](locale-ru/README.md) | `@apopov-app/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
-| [`stt-gigaam/`](stt-gigaam/README.md) | `@apopov-app/dsh-stt-gigaam` 1.0.0 | Локальный провайдер распознавания русской речи для голосового ввода: GigaAM v3 (CTC, ONNX) через `sherpa-onnx`, без облака. |
+| [`stt-gigaam/`](stt-gigaam/README.md) | `@apopov-app/dsh-stt-gigaam` 1.0.1 | Локальный провайдер распознавания русской речи для голосового ввода: GigaAM v3 (CTC, ONNX) через `sherpa-onnx`, без облака. |
 
 ### anonymous-session
 
@@ -100,24 +100,26 @@ dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh
 
 ## Публикация в npm
 
-Оба пакета готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
+Все три пакета готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
 
 ```sh
 cd plugins/anonymous-session && npm pack --dry-run
 cd ../locale-ru && npm pack --dry-run
+cd ../stt-gigaam && npm pack --dry-run
 ```
 
-Публикация (нужен npm-логин с доступом к scope `@apopov-app`):
+Публикация (нужен npm-логин с доступом к scope `@apopov-app`; отложена, пока решается вопрос с восстановлением аккаунта):
 
 ```sh
 npm login
 cd plugins/anonymous-session && npm publish --access public
 cd ../locale-ru && npm publish --access public
+cd ../stt-gigaam && npm publish --access public
 ```
 
-Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2` и `@apopov-app/dsh-locale-ru@1.0.3` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
+Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3` и `@apopov-app/dsh-stt-gigaam@1.0.1` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
 
-`engines.dsh` у обоих — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`).
+`engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `stt-gigaam` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модель скачивается при первом Prepare.
 
 ## Ограничения
 
