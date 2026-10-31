@@ -412,11 +412,143 @@ class GigaamPreparation {
 }
 
 /**
- * Register the GigaAM provider for one Host composition.
+ * Self-contained GigaAM recognizer: assets, worker and transcription behind one
+ * object, so the voice assistant can transcribe without the built-in speech
+ * registry. The optional provider registration below reuses the same instance
+ * when the official subsystem happens to be present.
+ */
+export class GigaamService {
+  #worker;
+  #preparation;
+  #info;
+
+  constructor(config = {}) {
+    const directory = resolveDirectory(config);
+    const origins = resolveOrigins(config);
+    this.#worker = new GigaamWorker(directory);
+    this.#preparation = new GigaamPreparation(directory, this.#worker, origins);
+    this.#info = {
+      id: PROVIDER_ID,
+      name: 'GigaAM v3 (Russian, local)',
+      location: 'host-local',
+      // 'auto' is accepted because the shared preference defaults to it and the
+      // language picker only offers the selected provider's hints; without it the
+      // first switch to this provider is rejected. The model is Russian-only, so
+      // every accepted hint produces Russian text.
+      languages: ['auto', 'ru'],
+      downloadSources: origins,
+      setupEstimate: {
+        recommendedDiskBytes: MODEL_BYTES + TOKENS_BYTES,
+        expectedMemoryBytes: 1_100_000_000,
+        minimumMinutes: 1,
+        maximumMinutes: 10,
+      },
+    };
+  }
+
+  /** Provider facts, for the optional official registration. */
+  get info() {
+    return this.#info;
+  }
+
+  /** Readiness watcher, for the optional official registration. */
+  get preparation() {
+    return this.#preparation;
+  }
+
+  /** Current preparation snapshot. */
+  snapshot() {
+    return this.#preparation.snapshot();
+  }
+
+  /** Load the model without transcribing anything. */
+  async prepare() {
+    await this.ensureReady();
+  }
+
+  /** Prepare the assets (downloading once when missing) and load the model. */
+  async ensureReady(signal) {
+    if (this.#worker.loaded) return;
+    const state = this.#preparation.snapshot();
+    if (state.phase === 'ready') return;
+    if (state.phase !== 'unprepared' && state.phase !== 'checking' && state.phase !== 'loading' && state.phase !== 'downloading') {
+      throw new Error(state.message ?? 'the GigaAM recognizer failed to prepare');
+    }
+    this.#preparation.prepare({});
+    for (let attempt = 0; attempt < 2400; attempt += 1) {
+      const current = this.#preparation.snapshot();
+      if (current.phase === 'ready' || this.#worker.loaded) return;
+      if (current.phase === 'failed') throw new Error(current.message ?? 'the GigaAM recognizer failed to prepare');
+      if (current.phase === 'cancelled') throw abortError();
+      if (signal?.aborted) throw abortError();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error('the GigaAM recognizer preparation timed out');
+  }
+
+  /** Transcribe one canonical 16 kHz mono PCM16 WAV. */
+  async transcribeWav(bytes, signal) {
+    // Validate the recording before touching (or loading) the model.
+    const samples = decodeWav(bytes);
+    await this.ensureReady(signal);
+    const audioSeconds = samples.length / SAMPLE_RATE;
+    await this.#worker.start().catch((error) => {
+      throw new Error(`the GigaAM model could not be loaded: ${messageOf(error)}`);
+    });
+    const result = await this.#worker.transcribe(samples, signal);
+    return { text: result.text.trim(), audioSeconds, inferenceSeconds: result.inferenceSeconds };
+  }
+
+  /** Transcribe a base64 WAV payload from the browser half. */
+  async transcribeBase64(base64, signal) {
+    const bytes = Buffer.from(String(base64), 'base64');
+    return await this.transcribeWav(bytes, signal);
+  }
+
+  /** Release the worker and any preparation task. */
+  async dispose() {
+    await this.#preparation.dispose();
+    await this.#worker.stop();
+  }
+}
+
+/**
+ * Optionally register the GigaAM provider with the official speech registry.
+ * Missing registry is not an error: the assistant has its own route and works
+ * without the built-in speech-to-text / voice-input bundles.
+ * @param ctx - Host context.
+ * @param service - shared recognizer instance.
+ * @returns whether the provider was registered.
+ */
+export function applyProvider(ctx, service) {
+  let registry;
+  try {
+    registry = typeof ctx.get === 'function' ? ctx.get('speechToText') : ctx.speechToText;
+  } catch (error) {
+    registry = undefined;
+  }
+  if (registry === undefined || registry === null || typeof registry.register !== 'function') return false;
+  ctx.effect(() => {
+    const unregister = registry.register({
+      info: service.info,
+      preparation: service.preparation,
+      transcribe: async (input, signal) => await service.transcribeWav(input.audio, signal),
+    });
+    return async () => {
+      const removing = unregister();
+      await removing;
+    };
+  }, 'voice-assistant: optional gigaam provider');
+  return true;
+}
+
+/**
+ * Legacy provider-only mount kept for compatibility; now builds its own
+ * service. Prefer {@link applyProvider} with a shared {@link GigaamService}.
  * @param ctx - Host context carrying the speech registry.
  * @param config - loader row config: `dataRoot` and `modelOrigins` overrides.
  */
-export function applyProvider(ctx, config = {}) {
+export function applyProviderLegacy(ctx, config = {}) {
   const directory = resolveDirectory(config);
   const worker = new GigaamWorker(directory);
   const preparation = new GigaamPreparation(directory, worker, resolveOrigins(config));
@@ -424,10 +556,6 @@ export function applyProvider(ctx, config = {}) {
     id: PROVIDER_ID,
     name: 'GigaAM v3 (Russian, local)',
     location: 'host-local',
-    // 'auto' is accepted because the shared preference defaults to it and the
-    // language picker only offers the selected provider's hints; without it the
-    // first switch to this provider is rejected. The model is Russian-only, so
-    // every accepted hint produces Russian text.
     languages: ['auto', 'ru'],
     downloadSources: resolveOrigins(config),
     setupEstimate: {

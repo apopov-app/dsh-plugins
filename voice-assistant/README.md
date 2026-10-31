@@ -67,15 +67,24 @@ speak in the selected voice's language instead of mixing the two on purpose.
 - **Always listening**: the VAD keeps the microphone open for hands-free
   barge-in. Use it in a quiet room; speaker audio will be recognized as speech.
 
-## Recognition provider
+## Recognition is self-contained
 
-The plugin owns the local Russian provider it needs: it registers
-`gigaam-local` (GigaAM v3 CTC, Russian, `host-local`) on the Host speech
-registry, exactly as the retired `@apopov-app/dsh-stt-gigaam` bundle did, and
-swallows nothing else: the official voice-input bundle still mounts the speech
-Remote carrier the browser talks to. Model assets are shared with the old
-plugin's cache (`$DSH_HOME/speech-to-text-gigaam`, ~225 MB) and only downloaded
-by an explicit `prepare` when missing.
+Speech recognition does not depend on the built-in speech subsystem: the plugin
+ships its own GigaAM v3 CTC recognizer and transcribes through its own Host
+route (`action: "transcribe"`), so disabling the official voice-input or
+speech-to-text bundles cannot break the assistant. The same recognizer is
+mirrored to the official speech registry as `gigaam-local` **only when that
+registry happens to be present**, so the built-in voice input keeps working
+when it is enabled. Model assets are shared with the old plugin's cache
+(`$DSH_HOME/speech-to-text-gigaam`, ~225 MB) and downloaded on demand.
+
+## Settings feedback
+
+Changing the voice, intonation or tempo saves the preference and immediately
+plays a short sample in the new voice and with the new prosody (for example
+“Голос переключён на Дмитрия.”). The sample is skipped when the selected voice
+model is not downloaded yet, and the download button reports its progress or
+the failure reason instead of staying silent.
 
 ## Install
 

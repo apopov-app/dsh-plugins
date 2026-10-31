@@ -30,9 +30,6 @@ window.__ModuleLoader__.load({
     const VAD_TICK_MS = 16;
     /** A turn that produced no assistant_say clip within this window resumes listening. */
     const THINK_TIMEOUT_MS = 90000;
-    /** Provider preparation phases that mean "usable right now". */
-    const READY_PHASES = new Set(['ready', 'standby', 'waking']);
-
     const FALLBACK_VOICES = [
       { id: 'irina', title: '' },
       { id: 'dmitri', title: '' },
@@ -62,6 +59,7 @@ window.__ModuleLoader__.load({
       'settings.ready': 'Ready',
       'settings.missing': 'Not downloaded',
       'settings.prepare': 'Download voice',
+      'settings.prepareFailed': 'Could not start the download',
       'settings.preparing': 'Preparing…',
       'settings.mic': 'Microphone',
       'settings.micDefault': 'System default',
@@ -135,6 +133,7 @@ window.__ModuleLoader__.load({
       'settings.ready': 'Готова',
       'settings.missing': 'Не скачана',
       'settings.prepare': 'Скачать голос',
+      'settings.prepareFailed': 'Не удалось начать загрузку',
       'settings.preparing': 'Готовится…',
       'settings.mic': 'Микрофон',
       'settings.micDefault': 'Системный по умолчанию',
@@ -208,6 +207,7 @@ window.__ModuleLoader__.load({
       'settings.ready': '已就绪',
       'settings.missing': '未下载',
       'settings.prepare': '下载声音',
+      'settings.prepareFailed': '无法开始下载',
       'settings.preparing': '准备中…',
       'settings.mic': '麦克风',
       'settings.micDefault': '系统默认',
@@ -322,6 +322,7 @@ window.__ModuleLoader__.load({
       '.va-set-text{display:flex;flex-direction:column;gap:2px;min-width:0}',
       '.va-set-title{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary)}',
       '.va-set-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px}',
+      '.va-set-error{color:var(--dsw-alias-state-error-primary,#d33)}',
       '.va-set-list{display:flex;flex-direction:column;min-width:0}',
       '.va-set-item{display:grid;grid-template-columns:minmax(0,1fr) 420px;align-items:center;gap:16px;padding:7px 0;border-top:.5px solid var(--dsw-alias-border-l1,rgba(127,127,127,.14))}',
       '.va-set-item:first-child{border-top:0;padding-top:2px}',
@@ -415,8 +416,6 @@ window.__ModuleLoader__.load({
 
     /** Resolve the localized translator installed by apply(). */
     let translate = (key) => key;
-    /** Resolve the official speech Remote lazily, so a missing service never crashes. */
-    let reachSpeech = () => undefined;
     /** Module-level sessions service resolver, bound by `apply`. */
     let reachSessions = () => undefined;
     /** Module-level plugin manager navigator, bound by `apply`. */
@@ -578,6 +577,87 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** Best-effort spoken sample for a just-changed preference. */
+    let previewClip = null;
+
+    /** Stop a settings sample that is still playing. */
+    function stopPreview() {
+      if (previewClip === null) return;
+      const clip = previewClip;
+      previewClip = null;
+      try {
+        clip.audio.pause();
+      } catch (error) {
+        /* the element may already be detached */
+      }
+      URL.revokeObjectURL(clip.url);
+    }
+
+    /** Build the confirmation line in the language of the selected voice. */
+    function previewLine(kind, value, state) {
+      const voices = Array.isArray(state.voices) ? state.voices : [];
+      const selected = voices.find((entry) => entry.id === state.voice);
+      const english = selected !== undefined && (selected.lang === 'en' || String(selected.id).startsWith('en-'));
+      if (kind === 'voice') {
+        const voice = voices.find((entry) => entry.id === value);
+        const title = voice !== undefined && voice.title !== '' ? voice.title : value;
+        const short = title.replace(/\s*\([^)]*\)\s*$/u, '');
+        return english ? 'Voice switched to ' + short + '.' : 'Голос переключён на ' + short + '.';
+      }
+      if (kind === 'intonation') {
+        const ru = { calm: 'спокойная', neutral: 'обычная', expressive: 'выразительная' };
+        const en = { calm: 'calm', neutral: 'neutral', expressive: 'expressive' };
+        return english ? 'Intonation is now ' + (en[value] ?? value) + '.' : 'Интонация теперь ' + (ru[value] ?? value) + '.';
+      }
+      if (kind === 'rate') {
+        const ru = { slow: 'медленный', normal: 'обычный', fast: 'быстрый' };
+        const en = { slow: 'slow', normal: 'normal', fast: 'fast' };
+        return english ? 'Tempo is now ' + (en[value] ?? value) + '.' : 'Темп теперь ' + (ru[value] ?? value) + '.';
+      }
+      return '';
+    }
+
+    /** Synthesize and play one short settings confirmation. */
+    async function speakPreview(kind, value) {
+      const state = read();
+      const voices = Array.isArray(state.voices) ? state.voices : [];
+      const selected = voices.find((entry) => entry.id === state.voice);
+      // Do not trigger a model download just to say a sample.
+      if (selected !== undefined && selected.ready !== true) return;
+      if (kind === 'voice') {
+        const target = voices.find((entry) => entry.id === value);
+        if (target !== undefined && target.ready !== true) return;
+      }
+      const line = previewLine(kind, value, state);
+      if (line === '') return;
+      stopPreview();
+      try {
+        const synthesized = await request({ action: 'tts', text: line, kind: 'reply' });
+        const payload = await synthesized.json();
+        if (payload === null || typeof payload !== 'object' || typeof payload.audioId !== 'string') return;
+        const response = await request({ action: 'audio', id: payload.audioId });
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        previewClip = { audio, url };
+        audio.addEventListener('ended', () => {
+          if (previewClip !== null && previewClip.audio === audio) {
+            URL.revokeObjectURL(url);
+            previewClip = null;
+          }
+        });
+        await audio.play();
+      } catch (error) {
+        /* a sample must never break the settings surface */
+      }
+    }
+
+    /** Persist one preference and speak its confirmation when it is audible. */
+    async function configureWithPreview(kind, patch) {
+      await configure(patch);
+      if (kind === 'voice' || kind === 'intonation' || kind === 'rate') void speakPreview(kind, patch[kind]);
+    }
+
     /** The orb's visual variant for a controller snapshot. */
     function variantOf(state) {
       if (state.open !== true) return 'idle';
@@ -649,12 +729,6 @@ window.__ModuleLoader__.load({
       /** Push-to-talk release: finish the utterance and send it. */
       holdEnd() {
         if (this.mode === 'recording') void this.finishUtterance();
-      }
-
-      /** The speech Remote, or undefined when the app does not provide it. */
-      speech() {
-        const remote = reachSpeech();
-        return remote !== null && typeof remote === 'object' ? remote : undefined;
       }
 
       /** Register one mounted overlay and return its disposer. */
@@ -779,12 +853,6 @@ window.__ModuleLoader__.load({
         });
         const run = ++this.generation;
         try {
-          const speech = this.speech();
-          if (speech === undefined || typeof speech.catalog !== 'function' || typeof speech.transcribe !== 'function') {
-            throw keyedFailure('error.speech');
-          }
-          const ready = await this.ensurePrepared(speech, run);
-          if (!ready || run !== this.generation) return;
           await this.openMicrophone();
           if (run !== this.generation) {
             this.releaseMicrophone();
@@ -855,125 +923,6 @@ window.__ModuleLoader__.load({
         if (this.mode === next) return;
         this.mode = next;
         publish({ mode: next });
-      }
-
-      /** Read the catalog and prepare the selected recognizer when needed. */
-      async ensurePrepared(speech, run) {
-        let catalog;
-        try {
-          catalog = await this.readCatalog(speech);
-        } catch (error) {
-          if (run !== this.generation) return false;
-          this.fail('error.catalog', failureMessage(error));
-          return false;
-        }
-        if (run !== this.generation) return false;
-        let provider = this.providerOf(catalog);
-        if (provider === null) {
-          const providers = Array.isArray(catalog.providers) ? catalog.providers.map((entry) => entry?.id).join(', ') : '';
-          this.fail('error.catalog', 'no speech provider registered (catalog: ' + (providers === '' ? 'empty' : providers) + ')');
-          return false;
-        }
-        if (READY_PHASES.has(this.phaseOf(provider))) {
-          this.applyCatalog(catalog, provider);
-          return true;
-        }
-        publish({ preparing: true, mode: 'starting' });
-        let lastPhase = 'unprepared';
-        let lastDetail = '';
-        try {
-          // The generated remote method declares (providerId, options); the
-          // client-api carrier validates the argument count exactly.
-          const prepared = await speech.prepare(provider.id, undefined);
-          if (prepared !== null && typeof prepared === 'object' && prepared.ok === false) {
-            lastDetail = remoteMessage(prepared) || 'the provider refused preparation';
-          }
-        } catch (error) {
-          if (run !== this.generation) return false;
-          this.fail('error.prepare', failureMessage(error));
-          return false;
-        }
-        if (run !== this.generation) return false;
-        for (let attempt = 0; attempt < 240; attempt += 1) {
-          let next = null;
-          try {
-            next = await this.readCatalog(speech);
-          } catch (error) {
-            next = null;
-            lastDetail = 'catalog read failed: ' + failureMessage(error);
-          }
-          if (run !== this.generation) return false;
-          if (next !== null) {
-            const entry = this.providerOf(next);
-            if (entry !== null) {
-              const phase = this.phaseOf(entry);
-              lastPhase = phase === '' ? 'unknown' : phase;
-              const preparation = entry.preparation !== null && typeof entry.preparation === 'object' ? entry.preparation : null;
-              if (typeof preparation?.message === 'string' && preparation.message !== '') lastDetail = preparation.message;
-              if (READY_PHASES.has(phase)) {
-                this.applyCatalog(next, entry);
-                publish({ preparing: false });
-                return true;
-              }
-              if (phase === 'failed') {
-                this.fail('error.prepare', lastDetail === '' ? 'the provider reported a failure without a message' : lastDetail);
-                return false;
-              }
-              if (phase === 'cancelled') {
-                this.fail('error.prepare', 'preparation was cancelled');
-                return false;
-              }
-              provider = entry;
-            } else {
-              lastDetail = 'the speech catalog no longer lists the selected provider';
-            }
-          }
-          await sleep(500);
-        }
-        if (run !== this.generation) return false;
-        this.fail('error.prepare', 'preparation did not finish in time; last provider phase: ' + lastPhase + (lastDetail === '' ? '' : ' — ' + lastDetail));
-        return false;
-      }
-
-      /** Catalog round-trip with the Remote envelope unwrapped. */
-      async readCatalog(speech) {
-        const result = await speech.catalog();
-        if (result === null || typeof result !== 'object') throw new Error('speech catalog is empty');
-        if (result.ok !== true) throw new Error(remoteMessage(result) || 'speech catalog failed');
-        const value = result.value;
-        if (value === null || typeof value !== 'object') throw new Error('speech catalog is empty');
-        return value;
-      }
-
-      providerOf(catalog) {
-        const providers = (Array.isArray(catalog.providers) ? catalog.providers : [])
-          .filter((entry) => entry !== null && typeof entry === 'object');
-        const selected = catalog.selection !== null && typeof catalog.selection === 'object' ? catalog.selection.providerId : '';
-        // Never silently prepare a different recognizer than the selected one:
-        // a missing provider is reported with the registered ids instead.
-        if (typeof selected === 'string' && selected !== '') {
-          return providers.find((entry) => entry.id === selected) ?? null;
-        }
-        return providers.length > 0 ? providers[0] : null;
-      }
-
-      phaseOf(provider) {
-        const preparation = provider !== null && typeof provider === 'object' ? provider.preparation : null;
-        return preparation !== null && typeof preparation === 'object' && typeof preparation.phase === 'string' ? preparation.phase : '';
-      }
-
-      applyCatalog(catalog, provider) {
-        const selection = catalog.selection !== null && typeof catalog.selection === 'object' ? catalog.selection : null;
-        this.selection = {
-          providerId: typeof selection?.providerId === 'string' ? selection.providerId : provider.id,
-          language: typeof selection?.language === 'string' && selection.language !== '' ? selection.language : 'ru',
-        };
-        if (typeof catalog.maxDurationSeconds === 'number' && catalog.maxDurationSeconds > 0) {
-          this.maxDurationSeconds = catalog.maxDurationSeconds;
-        }
-        if (typeof catalog.maxAudioBytes === 'number' && catalog.maxAudioBytes > 0) {
-          this.maxAudioBytes = catalog.maxAudioBytes;
-        }
       }
 
       /** Acquire the microphone and the RMS analyser once for the whole session. */
@@ -1190,6 +1139,7 @@ window.__ModuleLoader__.load({
       /** Open a recording; any speech during playback is a barge-in. */
       beginUtterance() {
         if (this.mode === 'off' || this.mode === 'starting' || this.mode === 'recording' || this.mode === 'transcribing') return;
+        stopPreview();
         if (typeof MediaRecorder !== 'function' || this.stream === null) {
           this.fail('error.unsupported');
           return;
@@ -1249,24 +1199,16 @@ window.__ModuleLoader__.load({
             this.resumeListening();
             return;
           }
-          const speech = this.speech();
-          if (speech === undefined || this.selection === null) {
-            this.fail('error.speech');
-            return;
-          }
           const bytes = await this.wavBytes(blob);
           if (run !== this.generation) return;
           if (bytes.byteLength > this.maxAudioBytes) {
             this.failSoft('error.tooLarge');
             return;
           }
-          const result = await speech.transcribe({ audioBase64: audioBase64(bytes), ...this.selection });
+          const response = await request({ action: 'transcribe', audioBase64: audioBase64(bytes) });
+          const payload = await response.json();
           if (run !== this.generation) return;
-          if (result === null || typeof result !== 'object' || result.ok !== true) {
-            this.failSoft('error.transcribe', remoteMessage(result) || 'transcription failed');
-            return;
-          }
-          const text = String(result.value?.text ?? '').replace(/\s+/g, ' ').trim();
+          const text = String(payload !== null && typeof payload === 'object' ? payload.text ?? '' : '').replace(/\s+/g, ' ').trim();
           if (text === '') {
             this.resumeListening();
             return;
@@ -1896,6 +1838,33 @@ window.__ModuleLoader__.load({
       const devices = useMicrophoneDevices(t);
       const selectedVoice = voices.find((entry) => entry.id === voice);
       const voiceReady = selectedVoice !== undefined && selectedVoice.ready === true;
+      const [prepare, setPrepare] = React.useState({ phase: 'idle', message: '' });
+
+      React.useEffect(() => {
+        if (voiceReady) setPrepare({ phase: 'idle', message: '' });
+      }, [voiceReady, voice]);
+
+      const startPrepare = async () => {
+        setPrepare({ phase: 'working', message: '' });
+        try {
+          const response = await request({ action: 'prepare' });
+          if (!response.ok) {
+            let detail = '';
+            try {
+              const payload = await response.json();
+              detail = typeof payload?.message === 'string' ? payload.message : '';
+            } catch (error) {
+              detail = '';
+            }
+            throw new Error(detail === '' ? 'HTTP ' + response.status : detail);
+          }
+          await refresh();
+        } catch (error) {
+          setPrepare({ phase: 'failed', message: failureMessage(error) });
+        }
+      };
+      const preparing = state.preparing === true || prepare.phase === 'working';
+
       return h(
         'div',
         { className: 'va-set-list' },
@@ -1909,20 +1878,20 @@ window.__ModuleLoader__.load({
           label: t('panel.voice'),
           value: voice,
           options: voices.map((entry) => ({ id: entry.id, label: entry.title !== '' ? entry.title : t('voice.' + entry.id) })),
-          onSelect: (value) => void configure({ voice: value }),
+          onSelect: (value) => void configureWithPreview('voice', { voice: value }),
           children: voiceReady
             ? h('span', { className: 'va-voice-ready', 'data-ready': 'true' }, t('settings.ready'))
             : h(
               React.Fragment,
               null,
-              h('span', { className: 'va-voice-ready' }, state.preparing === true ? t('settings.preparing') : t('settings.missing')),
-              state.preparing === true
+              h('span', { className: 'va-voice-ready' }, preparing ? t('settings.preparing') : t('settings.missing')),
+              preparing
                 ? null
                 : h('button', {
                   type: 'button',
                   className: 'va-set-btn',
                   onClick: () => {
-                    void request({ action: 'prepare' }).then(() => refresh()).catch(() => undefined);
+                    void startPrepare();
                   },
                 }, t('settings.prepare')),
             ),
@@ -1931,13 +1900,13 @@ window.__ModuleLoader__.load({
           label: t('panel.intonation'),
           value: intonation,
           options: intonations.map((id) => ({ id, label: t('intonation.' + id) })),
-          onSelect: (value) => void configure({ intonation: value }),
+          onSelect: (value) => void configureWithPreview('intonation', { intonation: value }),
         }),
         h(SettingsLine, {
           label: t('panel.rate'),
           value: rate,
           options: rates.map((id) => ({ id, label: t('rate.' + id) })),
-          onSelect: (value) => void configure({ rate: value }),
+          onSelect: (value) => void configureWithPreview('rate', { rate: value }),
         }),
         h(SettingsLine, {
           label: t('settings.mic'),
@@ -1952,6 +1921,9 @@ window.__ModuleLoader__.load({
           onSelect: (value) => void configure({ vadSensitivity: value }),
         }),
         h('p', { className: 'va-set-hint' }, t('sensitivity.hint')),
+        prepare.phase === 'failed'
+          ? h('p', { className: 'va-set-hint va-set-error', role: 'alert' }, t('settings.prepareFailed') + ': ' + prepare.message)
+          : null,
       );
     }
 
@@ -1976,7 +1948,7 @@ window.__ModuleLoader__.load({
           label: t('panel.voice'),
           value: voice,
           options: voices.map((entry) => ({ id: entry.id, label: entry.title !== '' ? entry.title : t('voice.' + entry.id) })),
-          onSelect: (value) => void configure({ voice: value }),
+          onSelect: (value) => void configureWithPreview('voice', { voice: value }),
           children: voiceReady ? h('span', { className: 'va-voice-ready', 'data-ready': 'true' }, t('settings.ready')) : null,
         }),
       );
@@ -2103,7 +2075,7 @@ window.__ModuleLoader__.load({
           onClose: () => controller.close(),
           onRetry: () => controller.retry(viewId),
           onVoice: (voice) => {
-            void configure({ voice });
+            void configureWithPreview('voice', { voice });
           },
           onListenMode: (listenMode) => {
             void configure({ listenMode });
@@ -2174,11 +2146,10 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      // The gateway service (`remote`) exposes the mounted namespaces as
-      // properties and the `remote.speech` service guarantees that the speech
-      // namespace is mounted before the orb starts; copying the official voice
-      // input plugin's dependency pair is what makes ctx.remote.speech resolve.
-      inject: ['slots', 'locale', 'remote', 'remote.speech', 'sessions', 'pluginNavigation'],
+      // Core client services only: recognition runs through this plugin's own
+      // Host route, so the built-in speech-to-text and voice-input bundles can
+      // be disabled without breaking the assistant.
+      inject: ['slots', 'locale', 'sessions', 'pluginNavigation'],
       apply(ctx) {
         translate = ctx.locale.bind(NS);
         reachSessions = () => {
@@ -2191,19 +2162,6 @@ window.__ModuleLoader__.load({
         reachNavigation = () => {
           try {
             return ctx.pluginNavigation;
-          } catch (error) {
-            return undefined;
-          }
-        };
-        reachSpeech = () => {
-          try {
-            const viaGateway = ctx.remote?.speech;
-            if (viaGateway !== undefined) return viaGateway;
-          } catch (error) {
-            /* fall through to the service lookup */
-          }
-          try {
-            return typeof ctx.get === 'function' ? ctx.get('remote.speech') : undefined;
           } catch (error) {
             return undefined;
           }

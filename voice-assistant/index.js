@@ -22,7 +22,7 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
-import { applyProvider as applyGigaamProvider } from './gigaam.js';
+import { applyProvider as applyGigaamProvider, GigaamService } from './gigaam.js';
 
 const require = createRequire(import.meta.url);
 const seekBzip = require('seek-bzip');
@@ -586,6 +586,7 @@ class VoiceAssistant {
       voices: VOICES.map((voice) => ({
         id: voice.id,
         title: voice.title,
+        lang: voice.lang ?? 'ru',
         ready: this.#assets.ready(voice.id),
         bytes: voice.bytes + voice.tokensBytes,
       })),
@@ -695,10 +696,11 @@ export function apply(ctx) {
   const directory = path.join(home, STATE_DIRECTORY);
   const shared = path.join(home, SHARED_ASSET_DIRECTORY);
   const assistant = new VoiceAssistant(directory, shared);
-  // The recognized voice is what makes the assistant conversational: register
-  // the local GigaAM Russian provider on the Host speech registry, exactly as
-  // the retired `stt-gigaam` bundle did, so no second plugin is needed.
-  applyGigaamProvider(ctx);
+  // Recognition is served by this plugin's own route; the official speech
+  // registry is only mirrored when it happens to exist, so disabling the
+  // built-in voice input or speech-to-text bundles cannot break the assistant.
+  const gigaam = new GigaamService();
+  applyGigaamProvider(ctx, gigaam);
 
   const route = async (request) => {
     let body = {};
@@ -712,6 +714,11 @@ export function apply(ctx) {
       if (body?.action === 'state') return Response.json(assistant.snapshot());
       if (body?.action === 'config') return Response.json(await assistant.configure(body));
       if (body?.action === 'prepare') return Response.json(assistant.prepareSelected());
+      if (body?.action === 'transcribe') {
+        const audioBase64 = typeof body?.audioBase64 === 'string' ? body.audioBase64 : '';
+        if (audioBase64 === '') return Response.json({ message: 'the recording was empty' }, { status: 400 });
+        return Response.json(await gigaam.transcribeBase64(audioBase64));
+      }
       if (body?.action === 'tts') {
         const text = normalizeLine(body?.text);
         if (text === '') return Response.json({ message: 'the spoken line was empty' }, { status: 400 });
@@ -795,7 +802,8 @@ export function apply(ctx) {
   }), 'voice-assistant: mode prompt section');
 
   ctx.effect(() => () => assistant.dispose(), 'voice-assistant: synthesis worker');
+  ctx.effect(() => () => gigaam.dispose(), 'voice-assistant: recognition worker');
 }
 
 /** Connection serves the route, the tools and prompt carry the model surface, and the speech registry hosts the local recognizer. */
-export const inject = ['connection', 'tools', 'systemPrompt', 'speechToText'];
+export const inject = ['connection', 'tools', 'systemPrompt'];
