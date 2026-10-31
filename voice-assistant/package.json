@@ -1,0 +1,49 @@
+{
+  "name": "@apopov-app/dsh-voice-assistant",
+  "version": "0.1.0",
+  "description": "Voice assistant for DSH: a floating orb opens a full voice conversation with barge-in, local Russian speech recognition (GigaAM) and local Piper speech synthesis.",
+  "license": "MIT",
+  "author": "apopov-app",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "voice",
+    "assistant",
+    "speech"
+  ],
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "files": [
+    "index.js",
+    "worker.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "gigaam.js",
+    "stt-worker.js"
+  ],
+  "dependencies": {
+    "seek-bzip": "2.0.0",
+    "sherpa-onnx-node": "1.13.8"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  }
+}
