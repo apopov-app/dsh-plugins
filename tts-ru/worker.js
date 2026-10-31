@@ -17,7 +17,7 @@ function messageOf(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The loaded engine and the voice it belongs to. */
+/** The loaded engine, the voice it belongs to and its prosody settings. */
 let engine;
 
 parentPort?.on('message', (message) => {
@@ -25,15 +25,22 @@ parentPort?.on('message', (message) => {
   const started = performance.now();
   try {
     const { OfflineTts } = require('sherpa-onnx-node');
-    if (engine === undefined || engine.voice !== message.voice) {
+    const noiseScale = Number.isFinite(message.noiseScale) ? message.noiseScale : 0.667;
+    const noiseScaleW = Number.isFinite(message.noiseScaleW) ? message.noiseScaleW : 0.8;
+    const engineKey = `${message.voice}:${noiseScale}:${noiseScaleW}`;
+    if (engine === undefined || engine.key !== engineKey) {
       engine = {
-        voice: message.voice,
+        key: engineKey,
         tts: new OfflineTts({
           model: {
             vits: {
               model: String(message.model),
               tokens: String(message.tokens),
               dataDir: String(message.dataDir),
+              // Engine-level prosody: these feed the VITS stochastic duration
+              // and pitch predictors, so a preset change rebuilds the engine.
+              noiseScale,
+              noiseScaleW,
             },
           },
           maxNumSentences: 2,
@@ -43,7 +50,10 @@ parentPort?.on('message', (message) => {
       };
     }
     const speed = Number.isFinite(message.speed) ? Math.min(1.4, Math.max(0.6, message.speed)) : 1;
-    const audio = engine.tts.generate({ text: String(message.text), sid: 0, speed });
+    // Electron's V8 memory cage rejects the sherpa-onnx default external
+    // ArrayBuffer for generated samples ("External buffers are not allowed"),
+    // so ask the addon to copy the samples into a regular ArrayBuffer instead.
+    const audio = engine.tts.generate({ text: String(message.text), sid: 0, speed, enableExternalBuffer: false });
     const samples = audio.samples instanceof Float32Array ? audio.samples : new Float32Array(audio.samples);
     const result = {
       type: 'result',

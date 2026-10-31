@@ -32,14 +32,31 @@ const MAX_CLIPS = 32;
 
 /** Russian piper voices converted for sherpa-onnx, pinned by revision. */
 const VOICES = Object.freeze([
-  { id: 'irina', title: 'Ирина (женский)', repo: 'csukuangfj/vits-piper-ru_RU-irina-medium', revision: 'b095bed45c39813266edf14ffa2bade5ebfc929c', file: 'ru_RU-irina-medium.onnx', bytes: 63_201_422, tokensBytes: 899 },
-  { id: 'dmitri', title: 'Дмитрий (мужской)', repo: 'csukuangfj/vits-piper-ru_RU-dmitri-medium', revision: '51cc3e9ea521e33ef3771f11e02b29ecb42a91f1', file: 'ru_RU-dmitri-medium.onnx', bytes: 63_201_422, tokensBytes: 907 },
-  { id: 'denis', title: 'Денис (мужской)', repo: 'csukuangfj/vits-piper-ru_RU-denis-medium', revision: '1e2f78fc13100abc60bf56264dc2ee254b4c5f8e', file: 'ru_RU-denis-medium.onnx', bytes: 63_201_422, tokensBytes: 907 },
-  { id: 'ruslan', title: 'Руслан (мужской)', repo: 'csukuangfj/vits-piper-ru_RU-ruslan-medium', revision: '22c226825c24319e30cbf8a3844a240b9f6b1951', file: 'ru_RU-ruslan-medium.onnx', bytes: 63_201_422, tokensBytes: 921 },
+  { id: 'irina', title: 'Ирина (женский)', gender: 'female', repo: 'csukuangfj/vits-piper-ru_RU-irina-medium', revision: 'b095bed45c39813266edf14ffa2bade5ebfc929c', file: 'ru_RU-irina-medium.onnx', bytes: 63_201_422, tokensBytes: 899 },
+  { id: 'dmitri', title: 'Дмитрий (мужской)', gender: 'male', repo: 'csukuangfj/vits-piper-ru_RU-dmitri-medium', revision: '51cc3e9ea521e33ef3771f11e02b29ecb42a91f1', file: 'ru_RU-dmitri-medium.onnx', bytes: 63_201_422, tokensBytes: 907 },
+  { id: 'denis', title: 'Денис (мужской)', gender: 'male', repo: 'csukuangfj/vits-piper-ru_RU-denis-medium', revision: '1e2f78fc13100abc60bf56264dc2ee254b4c5f8e', file: 'ru_RU-denis-medium.onnx', bytes: 63_201_422, tokensBytes: 907 },
+  { id: 'ruslan', title: 'Руслан (мужской)', gender: 'male', repo: 'csukuangfj/vits-piper-ru_RU-ruslan-medium', revision: '22c226825c24319e30cbf8a3844a240b9f6b1951', file: 'ru_RU-ruslan-medium.onnx', bytes: 63_201_422, tokensBytes: 921 },
 ]);
 const VOICE_BY_ID = new Map(VOICES.map((voice) => [voice.id, voice]));
 /** Default downloadable voice. */
 const DEFAULT_VOICE = 'irina';
+/**
+ * Prosody presets for the VITS model. `noiseScale` drives the pitch/energy
+ * variation of the generated speech, `noiseScaleW` how unevenly durations are
+ * drawn; both are engine-level inputs (Piper's own defaults are 0.667 / 0.8),
+ * so switching a preset rebuilds the synthesizer.
+ */
+const INTONATIONS = Object.freeze({
+  calm: { noiseScale: 0.45, noiseScaleW: 0.5 },
+  neutral: { noiseScale: 0.667, noiseScaleW: 0.8 },
+  expressive: { noiseScale: 0.95, noiseScaleW: 1 },
+});
+/** Intonation used until the person picks another one. */
+const DEFAULT_INTONATION = 'neutral';
+/** Speaking-rate presets, applied per clip as a per-call speed multiplier. */
+const RATES = Object.freeze({ slow: 0.85, normal: 1, fast: 1.15 });
+/** Speaking rate used until the person picks another one. */
+const DEFAULT_RATE = 'normal';
 /** espeak-ng phoneme data required by the phoneme-based Piper voices. */
 const ESPEAK = Object.freeze({
   url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/espeak-ng-data.tar.bz2',
@@ -50,13 +67,51 @@ const ESPEAK = Object.freeze({
 const ORIGINS = ['https://huggingface.co', 'https://hf-mirror.com'];
 
 /** Instruction injected into the system prompt while voice replies are enabled. */
-const VOICE_PROMPT = `Voice replies are enabled: the user hears a short spoken takeaway after your answers.
-After every substantive answer, call \`speak_summary\` exactly once with a 2-3 sentence spoken summary in the user's language (at most 400 characters): the key takeaway a person would say out loud, not a restatement of the full answer. Skip the call for trivial acknowledgements.
-Write the summary as plain spoken prose: no markdown, no code, no lists, no tool names. Do not repeat the summary in the visible answer.`;
+const VOICE_PROMPT = `Voice replies are enabled: the user hears short spoken lines in addition to the written answer.
+Announce work before you start it. When you are about to begin a work phase that will use tools — fixing something, editing files, running commands, or a longer research pass — call \`speak_summary\` once with kind "intro" and one short sentence in the user's language that names the task, like "Приступаю к исправлению плагина". Announce each work phase once, right before its first tool call; do not announce trivial read-only steps and do not repeat the same intro.
+Narrate the work as it happens. After each meaningful milestone — a cause found, a fix applied, a batch of edits finished, a long command or check started or finished, a plan changed — call \`speak_summary\` once with kind "progress" and one short sentence in the user's language, like "Причину нашёл, теперь правлю воркер". Keep it to a few lines per task, speak only parts worth hearing, and never repeat a line you already spoke.
+After every single answer, including short confirmations, one-line replies, and trivial acknowledgements, call \`speak_summary\` exactly once with kind "summary" and a 2-3 sentence spoken takeaway in the user's language (at most 400 characters): the key takeaway a person would say out loud, not a restatement of the full answer.
+Write all of them as plain spoken prose: no markdown, no code, no lists, no tool names. Do not repeat the summary in the visible answer.`;
+
+/**
+ * Keep every first-person reference in the grammatical gender of the selected
+ * voice, so a female voice never says "я нашёл" and a male voice never says
+ * "я нашла". Covers the written answer as well as the spoken lines.
+ * @param voice - the selected voice descriptor from {@link VOICES}.
+ */
+function genderPrompt(voice) {
+  const title = voice?.title ?? 'Ирина (женский)';
+  if (voice?.gender === 'male') {
+    return `The selected voice is ${title}. In gendered languages refer to yourself in masculine grammatical forms in the written answer and in every spoken line: "я проверил", "я нашёл", "я готов", "сделал" — never "я проверила", "нашла", "готова".`;
+  }
+  return `The selected voice is ${title}. In gendered languages refer to yourself in feminine grammatical forms in the written answer and in every spoken line: "я проверила", "я нашла", "я готова", "сделала" — never "я проверил", "нашёл", "готов".`;
+}
+
+/** Pronunciation overrides next to the model cache. */
+const PRONUNCIATIONS_FILE = 'pronunciations.json';
+
+/**
+ * Compile a `word -> replacement` table into a whole-word replacer. Values are
+ * plain text (orthoepic respellings such as "его" -> "ево") or an espeak-ng
+ * phoneme string in double brackets (e.g. "[[zvɐˈnʲit]]") when exact phonemes or
+ * stress are required. Keys match whole words, case-insensitively.
+ * @param table - parsed pronunciation JSON.
+ * @returns a function that rewrites one text.
+ */
+function compilePronunciations(table) {
+  const map = new Map();
+  for (const [word, value] of Object.entries(table ?? {})) {
+    if (typeof word !== 'string' || word === '' || typeof value !== 'string' || value === '') continue;
+    map.set(word.toLowerCase(), value);
+  }
+  if (map.size === 0) return (text) => text;
+  const wordPattern = /[\p{L}\p{N}]+(?:[’'\-][\p{L}\p{N}]+)*/gu;
+  return (text) => text.replace(wordPattern, (token) => map.get(token.toLowerCase()) ?? token);
+}
 
 /** Tool description shown to the model. */
-const TOOL_DESCRIPTION = `Send a short spoken summary for local text-to-speech playback.
-Call it once after a substantive answer when voice replies are enabled: pass the 2-3 sentence takeaway in the user's language (at most 400 characters) as plain prose without markdown or code. The summary is synthesized on this machine and played in the browser; it is not the answer text itself.`;
+const TOOL_DESCRIPTION = `Send one short spoken line for local text-to-speech playback (at most 400 characters).
+Three uses while voice replies are enabled. Before a work phase that uses tools, pass kind "intro" with a one-sentence announcement in the user's language, such as "Приступаю к исправлению плагина". While the work runs, pass kind "progress" with one sentence about a meaningful milestone, such as "Причину нашёл, правлю воркер". After every answer, including short confirmations, pass kind "summary" with a 2-3 sentence takeaway. Write plain prose without markdown or code. The line is synthesized on this machine and played in the browser; it is not the answer text itself.`;
 
 /** Narrow an unknown thrown value to a readable message. */
 function messageOf(error) {
@@ -387,10 +442,11 @@ class VoiceReplies {
   #assets;
   #worker = new TtsWorker();
   #clips = new ClipStore();
-  #state = { enabled: false, voice: DEFAULT_VOICE };
+  #state = { enabled: false, voice: DEFAULT_VOICE, intonation: DEFAULT_INTONATION, rate: DEFAULT_RATE };
   #stateFile;
   #loadTask;
   #preparing;
+  #pronunciations = { at: 0, replace: (text) => text };
   #error = '';
 
   constructor(directory) {
@@ -406,9 +462,11 @@ class VoiceReplies {
       this.#state = {
         enabled: parsed?.enabled === true,
         voice: VOICE_BY_ID.has(parsed?.voice) ? parsed.voice : DEFAULT_VOICE,
+        intonation: typeof parsed?.intonation === 'string' && parsed.intonation in INTONATIONS ? parsed.intonation : DEFAULT_INTONATION,
+        rate: typeof parsed?.rate === 'string' && parsed.rate in RATES ? parsed.rate : DEFAULT_RATE,
       };
     } catch {
-      this.#state = { enabled: false, voice: DEFAULT_VOICE };
+      this.#state = { enabled: false, voice: DEFAULT_VOICE, intonation: DEFAULT_INTONATION, rate: DEFAULT_RATE };
     }
   }
 
@@ -432,6 +490,10 @@ class VoiceReplies {
     return {
       enabled: this.#state.enabled,
       voice: this.#state.voice,
+      intonation: this.#state.intonation,
+      rate: this.#state.rate,
+      intonations: Object.keys(INTONATIONS),
+      rates: Object.keys(RATES),
       voices: VOICES.map((voice) => ({
         id: voice.id,
         title: voice.title,
@@ -451,6 +513,14 @@ class VoiceReplies {
       this.#state.voice = patch.voice;
     }
     if (typeof patch?.enabled === 'boolean') this.#state.enabled = patch.enabled;
+    if (typeof patch?.intonation === 'string') {
+      if (!(patch.intonation in INTONATIONS)) throw new Error(`unknown intonation: ${patch.intonation}`);
+      this.#state.intonation = patch.intonation;
+    }
+    if (typeof patch?.rate === 'string') {
+      if (!(patch.rate in RATES)) throw new Error(`unknown rate: ${patch.rate}`);
+      this.#state.rate = patch.rate;
+    }
     await fsp.mkdir(this.#directory, { recursive: true });
     await fsp.writeFile(this.#stateFile, JSON.stringify(this.#state));
     this.#error = '';
@@ -470,6 +540,24 @@ class VoiceReplies {
       });
   }
 
+  /**
+   * The current pronunciation replacer, reloaded when the JSON file changes.
+   * @returns the whole-word replacer to apply before synthesis.
+   */
+  async #pronunciationReplacer() {
+    const file = path.join(this.#directory, PRONUNCIATIONS_FILE);
+    try {
+      const info = await fsp.stat(file);
+      if (info.mtimeMs !== this.#pronunciations.at) {
+        const table = JSON.parse(await fsp.readFile(file, 'utf8'));
+        this.#pronunciations = { at: info.mtimeMs, replace: compilePronunciations(table) };
+      }
+    } catch {
+      if (this.#pronunciations.at !== 0) this.#pronunciations = { at: 0, replace: (text) => text };
+    }
+    return this.#pronunciations.replace;
+  }
+
   /** Synthesize one summary for the selected voice and store the clip. */
   async speak(text, signal) {
     await this.settle();
@@ -477,17 +565,22 @@ class VoiceReplies {
     this.#prepareInBackground(voice.id);
     await this.#assets.prepare(voice.id, signal);
     const paths = voicePaths(this.#directory, voice);
+    const intonation = INTONATIONS[this.#state.intonation] ?? INTONATIONS[DEFAULT_INTONATION];
+    const replace = await this.#pronunciationReplacer();
+    const spokenText = replace(text);
     const rendered = await this.#worker.synthesize({
-      text,
+      text: spokenText,
       voice: voice.id,
       model: paths.model,
       tokens: paths.tokens,
       dataDir: path.join(this.#directory, 'espeak-ng-data'),
-      speed: 1,
+      noiseScale: intonation.noiseScale,
+      noiseScaleW: intonation.noiseScaleW,
+      speed: RATES[this.#state.rate] ?? RATES[DEFAULT_RATE],
     }, signal);
     const wav = encodeWav(rendered.samples, rendered.sampleRate);
     const seconds = rendered.samples.length / rendered.sampleRate;
-    const audioId = this.#clips.put(text, voice.id, wav, seconds);
+    const audioId = this.#clips.put(spokenText, voice.id, wav, seconds);
     return { audioId, seconds, voice: voice.id };
   }
 
@@ -549,7 +642,12 @@ export function apply(ctx) {
       properties: {
         text: {
           type: 'string',
-          description: 'Spoken takeaway in the user\'s language: 2-3 sentences, at most 400 characters, plain prose without markdown or code.',
+          description: 'Spoken line in the user\'s language: at most 400 characters, plain prose without markdown or code. For an intro, one sentence naming the task; for a summary, 2-3 sentences with the takeaway.',
+        },
+        kind: {
+          type: 'string',
+          enum: ['intro', 'progress', 'summary'],
+          description: 'Use "intro" for the one-sentence announcement right before a work phase that uses tools, "progress" for a one-sentence milestone during the work, and "summary" for the closing takeaway after an answer.',
         },
       },
       required: ['text'],
@@ -560,11 +658,11 @@ export function apply(ctx) {
       render: (_args, value) => [{
         type: 'text',
         text: value?.spoken === true
-          ? `voice summary prepared: ${value.seconds}s, voice ${value.voice}`
+          ? `${value.kind === 'intro' ? 'voice intro' : value.kind === 'progress' ? 'voice progress' : 'voice summary'} prepared: ${value.seconds}s, voice ${value.voice}`
           : `voice summary skipped: ${String(value?.reason ?? 'unavailable')}`,
       }],
       presentationMeta: (args, value) => (value?.spoken === true
-        ? { audioId: value.audioId, seconds: value.seconds, text: normalizeSummary(args?.text).slice(0, 240), voice: value.voice }
+        ? { audioId: value.audioId, seconds: value.seconds, text: normalizeSummary(args?.text).slice(0, 240), voice: value.voice, kind: value.kind }
         : undefined),
     },
     execute: async (args, exec) => {
@@ -572,15 +670,20 @@ export function apply(ctx) {
       if (!replies.enabled) return { spoken: false, reason: 'voice replies are disabled' };
       const text = normalizeSummary(args?.text);
       if (text === '') return { spoken: false, reason: 'the spoken summary was empty' };
+      const kind = args?.kind === 'intro' ? 'intro' : args?.kind === 'progress' ? 'progress' : 'summary';
       const result = await replies.speak(text, exec.signal);
-      return { spoken: true, audioId: result.audioId, seconds: Math.round(result.seconds * 10) / 10, voice: result.voice };
+      return { spoken: true, audioId: result.audioId, seconds: Math.round(result.seconds * 10) / 10, voice: result.voice, kind };
     },
   }), 'tts-ru: speak_summary tool');
 
   ctx.effect(() => ctx.systemPrompt.section({
     name: PROMPT_SECTION,
     order: ctx.systemPrompt.getSectionOrder('TOOL_REPORT') + 10,
-    text: () => (replies.enabled ? VOICE_PROMPT : ''),
+    text: () => {
+      if (!replies.enabled) return '';
+      const voice = VOICE_BY_ID.get(replies.voice) ?? VOICE_BY_ID.get(DEFAULT_VOICE);
+      return `${VOICE_PROMPT}\n${genderPrompt(voice)}`;
+    },
   }), 'tts-ru: voice prompt section');
 
   ctx.effect(() => () => replies.dispose(), 'tts-ru: synthesis worker');

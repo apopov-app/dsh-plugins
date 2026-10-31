@@ -8,15 +8,26 @@ window.__ModuleLoader__.load({
     const NS = 'tts-ru';
     /** Document-relative form of the Host route. */
     const ROUTE = 'api/tts-ru';
+    /** This plugin's package name, used to target its page in the Plugins manager. */
+    const PLUGIN_PACKAGE = '@apopov-app/dsh-tts-ru';
 
     const en = {
       'dock.title': 'Voice replies',
       'dock.aria': 'Voice replies: speak short summaries',
       'dock.unavailable': 'Voice replies are unavailable',
+      'settings.hint': 'When enabled, every answer is followed by a short spoken takeaway synthesized on this machine. The composer speaker button does the same.',
       'panel.title': 'Voice replies',
       'panel.hint': 'When enabled, the model sends a 2–3 sentence takeaway to the speak_summary tool and it is spoken locally after the answer. The full answer is never read.',
       'panel.enabled': 'Speak short summaries',
       'panel.voice': 'Voice',
+      'panel.intonation': 'Intonation',
+      'panel.rate': 'Tempo',
+      'intonation.calm': 'Calm',
+      'intonation.neutral': 'Neutral',
+      'intonation.expressive': 'Expressive',
+      'rate.slow': 'Slow',
+      'rate.normal': 'Normal',
+      'rate.fast': 'Fast',
       'panel.ready': 'Ready',
       'panel.preparing': 'Preparing…',
       'panel.missing': 'Not downloaded',
@@ -26,8 +37,11 @@ window.__ModuleLoader__.load({
       'panel.refresh': 'Refresh',
       'summary.running': 'Preparing the spoken summary…',
       'summary.title': 'Spoken summary',
+      'summary.intro': 'Intro',
+      'summary.progress': 'Progress',
       'summary.seconds': '{seconds} s',
       'summary.play': 'Play',
+      'summary.queued': 'Queued',
       'summary.stop': 'Stop',
       'summary.loading': 'Loading audio…',
       'summary.failed': 'The spoken summary could not be played.',
@@ -38,10 +52,19 @@ window.__ModuleLoader__.load({
       'dock.title': 'Голосовые ответы',
       'dock.aria': 'Голосовые ответы: озвучивать краткие выжимки',
       'dock.unavailable': 'Голосовые ответы недоступны',
+      'settings.hint': 'Когда включено, каждый ответ сопровождается краткой озвученной выжимкой; синтез идёт локально. Кнопка динамика в композере делает то же самое.',
       'panel.title': 'Голосовые ответы',
       'panel.hint': 'Когда режим включён, модель отправляет краткую выжимку (2–3 предложения) в инструмент speak_summary, и она озвучивается локально после ответа. Весь ответ целиком не читается.',
       'panel.enabled': 'Озвучивать краткие выжимки',
       'panel.voice': 'Голос',
+      'panel.intonation': 'Интонация',
+      'panel.rate': 'Темп',
+      'intonation.calm': 'Спокойная',
+      'intonation.neutral': 'Обычная',
+      'intonation.expressive': 'Выразительная',
+      'rate.slow': 'Медленно',
+      'rate.normal': 'Обычно',
+      'rate.fast': 'Быстро',
       'panel.ready': 'Готов',
       'panel.preparing': 'Готовится…',
       'panel.missing': 'Не скачан',
@@ -51,8 +74,11 @@ window.__ModuleLoader__.load({
       'panel.refresh': 'Обновить',
       'summary.running': 'Готовлю озвучку выжимки…',
       'summary.title': 'Выжимка голосом',
+      'summary.intro': 'Вступление',
+      'summary.progress': 'Ход работы',
       'summary.seconds': '{seconds} с',
       'summary.play': 'Прослушать',
+      'summary.queued': 'В очереди',
       'summary.stop': 'Остановить',
       'summary.loading': 'Загружаю аудио…',
       'summary.failed': 'Не удалось воспроизвести озвученную выжимку.',
@@ -63,10 +89,19 @@ window.__ModuleLoader__.load({
       'dock.title': '语音回复',
       'dock.aria': '语音回复：朗读简短要点',
       'dock.unavailable': '语音回复不可用',
+      'settings.hint': '启用后每个回答都会附带一段本地合成的简短语音要点；输入框中的扬声器按钮效果相同。',
       'panel.title': '语音回复',
       'panel.hint': '启用后，模型会把 2–3 句要点发送给 speak_summary 工具，并在回答后于本地朗读。不会朗读完整回答。',
       'panel.enabled': '朗读简短要点',
       'panel.voice': '声音',
+      'panel.intonation': '语调',
+      'panel.rate': '语速',
+      'intonation.calm': '平稳',
+      'intonation.neutral': '自然',
+      'intonation.expressive': '生动',
+      'rate.slow': '慢',
+      'rate.normal': '正常',
+      'rate.fast': '快',
       'panel.ready': '就绪',
       'panel.preparing': '准备中…',
       'panel.missing': '未下载',
@@ -76,8 +111,11 @@ window.__ModuleLoader__.load({
       'panel.refresh': '刷新',
       'summary.running': '正在准备朗读要点…',
       'summary.title': '语音要点',
+      'summary.intro': '开场说明',
+      'summary.progress': '进展',
       'summary.seconds': '{seconds} 秒',
       'summary.play': '播放',
+      'summary.queued': '等待播放',
       'summary.stop': '停止',
       'summary.loading': '正在加载音频…',
       'summary.failed': '无法播放语音要点。',
@@ -108,6 +146,20 @@ window.__ModuleLoader__.load({
       '.tts-summary-btn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:13px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}',
       '.tts-summary-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
       '.tts-summary-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.tts-set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0;padding:2px 0}',
+      '.tts-set-text{display:flex;flex-direction:column;gap:2px;min-width:0}',
+      '.tts-set-title{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary)}',
+      '.tts-set-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px}',
+      '.tts-set-controls{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;min-width:0}',
+      '.tts-set-switch{display:inline-flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:12px;white-space:nowrap;cursor:pointer;user-select:none}',
+      '.tts-set-switch input{width:15px;height:15px;margin:0;accent-color:var(--dsw-alias-brand-primary)}',
+      '.tts-set-select{max-width:200px;height:28px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}',
+      '.tts-set-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.tts-pop-selects{display:flex;gap:8px}',
+      '.tts-pop-selects .tts-set-select{flex:1 1 0;max-width:none;min-width:0}',
+      '.tts-set-section{display:flex;flex-direction:column;gap:10px}',
+      '.tts-set-section-title{margin:0;font-size:14px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}',
+      '.tts-set-section .tts-set-controls{justify-content:flex-start}',
       '@media (prefers-reduced-motion:no-preference){.tts-spin{animation:tts-spin .9s linear infinite}}',
       '@keyframes tts-spin{to{transform:rotate(360deg)}}',
     ].join('\n');
@@ -144,6 +196,76 @@ window.__ModuleLoader__.load({
     function failureText(error) {
       return error instanceof Error ? error.message : String(error);
     }
+
+    /**
+     * Serial playback queue for spoken lines. Intro, progress and summary lines
+     * can arrive back-to-back, and playing them on top of each other makes them
+     * unintelligible, so every clip waits for the previous one to finish.
+     */
+    const playback = {
+      queue: [],
+      active: null,
+      /** Append a clip job; a row's stable key makes cancellation safe. */
+      enqueue(job) {
+        if (this.active !== null && this.active.key === job.key) return false;
+        if (this.queue.some((waiting) => waiting.key === job.key)) return false;
+        this.queue.push(job);
+        this.advance();
+        return true;
+      },
+      /** Drop a queued job or stop the active one; the next job then starts. */
+      cancel(key) {
+        const index = this.queue.findIndex((job) => job.key === key);
+        if (index !== -1) this.queue.splice(index, 1);
+        const active = this.active;
+        if (active === null || active.key !== key) return;
+        this.active = null;
+        active.audio.removeEventListener('ended', active.onEnded);
+        active.audio.pause();
+        this.advance();
+      },
+      /** Hand the active clip over to the queue (its row is going away). */
+      detach(key) {
+        const active = this.active;
+        if (active !== null && active.key === key) active.detached = true;
+      },
+      /** Release an element the queue kept alive after its row unmounted. */
+      release(job) {
+        job.audio.pause();
+        if (typeof job.url === 'string' && job.url !== '') URL.revokeObjectURL(job.url);
+      },
+      /** Start the next job when nothing is playing. */
+      advance() {
+        if (this.active !== null) return;
+        const job = this.queue.shift();
+        if (job === undefined) return;
+        this.active = job;
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          job.audio.removeEventListener('ended', job.onEnded);
+          if (this.active === job) {
+            this.active = null;
+            this.advance();
+          }
+          if (job.detached === true) this.release(job);
+        };
+        job.onEnded = () => {
+          job.ended();
+          finish();
+        };
+        job.audio.addEventListener('ended', job.onEnded);
+        if (job.audio.ended) job.audio.currentTime = 0;
+        const started = job.audio.play();
+        if (started !== undefined) {
+          started.then(() => job.started()).catch(() => {
+            job.failed();
+            finish();
+          });
+        }
+      },
+    };
 
     /** One authenticated Host request against this plugin's route. */
     async function request(body) {
@@ -223,6 +345,7 @@ window.__ModuleLoader__.load({
       const [open, setOpen] = React.useState(false);
       const [position, setPosition] = React.useState({ left: 0, top: 0 });
       const buttonRef = React.useRef(null);
+      const panelRef = React.useRef(null);
       const aliveRef = React.useRef(true);
 
       React.useEffect(() => {
@@ -237,7 +360,12 @@ window.__ModuleLoader__.load({
         if (!open) return undefined;
         const close = (event) => {
           if (event.type === 'keydown' && event.key !== 'Escape') return;
-          if (event.type === 'pointerdown' && buttonRef.current !== null && buttonRef.current.contains(event.target)) return;
+          if (event.type === 'pointerdown') {
+            const button = buttonRef.current;
+            const panel = panelRef.current;
+            if (button !== null && button.contains(event.target)) return;
+            if (panel !== null && panel.contains(event.target)) return;
+          }
           setOpen(false);
         };
         document.addEventListener('pointerdown', close, true);
@@ -282,6 +410,7 @@ window.__ModuleLoader__.load({
           ? h(
             'div',
             {
+              ref: panelRef,
               className: 'tts-pop',
               role: 'dialog',
               'aria-label': t('panel.title'),
@@ -324,6 +453,26 @@ window.__ModuleLoader__.load({
                     h('span', { className: 'tts-voice-state' }, voice.ready ? t('panel.ready') : (state.preparing ? t('panel.preparing') : t('panel.missing'))),
                   )),
                 ),
+                h(
+                  'div',
+                  { className: 'tts-pop-selects' },
+                  h('select', {
+                    className: 'tts-set-select',
+                    value: state.intonation ?? 'neutral',
+                    disabled: !state.loaded,
+                    'aria-label': t('panel.intonation'),
+                    title: t('panel.intonation'),
+                    onChange: (event) => void configure({ intonation: event.target.value }),
+                  }, (state.intonations ?? ['calm', 'neutral', 'expressive']).map((id) => h('option', { key: id, value: id }, t(`intonation.${id}`)))),
+                  h('select', {
+                    className: 'tts-set-select',
+                    value: state.rate ?? 'normal',
+                    disabled: !state.loaded,
+                    'aria-label': t('panel.rate'),
+                    title: t('panel.rate'),
+                    onChange: (event) => void configure({ rate: event.target.value }),
+                  }, (state.rates ?? ['slow', 'normal', 'fast']).map((id) => h('option', { key: id, value: id }, t(`rate.${id}`)))),
+                ),
                 h('p', { className: 'tts-pop-hint' }, t('panel.downloadHint')),
                 state.error !== '' ? h('p', { className: 'tts-error' }, t('panel.error', { message: state.error })) : null,
               ),
@@ -332,9 +481,144 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /** Poll the shared preference snapshot while a settings surface is mounted. */
+    function useVoiceSettings() {
+      const state = useSnapshot();
+      React.useEffect(() => {
+        void refresh();
+        const timer = setInterval(() => void refresh(), 3000);
+        return () => clearInterval(timer);
+      }, []);
+      return state;
+    }
+
+    /** The enable switch and voice picker shared by every settings surface. */
+    function VoiceSettingsControls({ t, state }) {
+      const voices = state.voices ?? [];
+      const active = state.enabled === true;
+      return h(
+        'div',
+        { className: 'tts-set-controls' },
+        h(
+          'label',
+          { className: 'tts-set-switch' },
+          h('input', {
+            type: 'checkbox',
+            checked: active,
+            disabled: !state.loaded,
+            onChange: (event) => void configure({ enabled: event.target.checked }),
+          }),
+          t('panel.enabled'),
+        ),
+        h(
+          'select',
+          {
+            className: 'tts-set-select',
+            value: state.voice,
+            disabled: !state.loaded || voices.length === 0,
+            'aria-label': t('panel.voice'),
+            onChange: (event) => void configure({ voice: event.target.value }),
+          },
+          voices.map((voice) => h(
+            'option',
+            { key: voice.id, value: voice.id },
+            voice.ready ? voice.title : `${voice.title} (${t('panel.missing')})`,
+          )),
+        ),
+        h(
+          'select',
+          {
+            className: 'tts-set-select',
+            value: state.intonation ?? 'neutral',
+            disabled: !state.loaded,
+            'aria-label': t('panel.intonation'),
+            title: t('panel.intonation'),
+            onChange: (event) => void configure({ intonation: event.target.value }),
+          },
+          (state.intonations ?? ['calm', 'neutral', 'expressive']).map((id) => h(
+            'option',
+            { key: id, value: id },
+            t(`intonation.${id}`),
+          )),
+        ),
+        h(
+          'select',
+          {
+            className: 'tts-set-select',
+            value: state.rate ?? 'normal',
+            disabled: !state.loaded,
+            'aria-label': t('panel.rate'),
+            title: t('panel.rate'),
+            onChange: (event) => void configure({ rate: event.target.value }),
+          },
+          (state.rates ?? ['slow', 'normal', 'fast']).map((id) => h(
+            'option',
+            { key: id, value: id },
+            t(`rate.${id}`),
+          )),
+        ),
+        state.preparing === true ? h('span', { className: 'tts-set-hint' }, t('panel.preparing')) : null,
+        state.error !== '' ? h('span', { className: 'tts-error' }, t('panel.error', { message: state.error })) : null,
+      );
+    }
+
     /**
-     * Chat row for one speak_summary call: shows the spoken takeaway and plays
-     * the cached clip, automatically when voice replies are enabled.
+     * Settings → General row: the same enable switch and voice choice as the
+     * composer panel, so the preference can be changed without opening the dock.
+     */
+    function VoiceSettingsRow({ t = (key) => key }) {
+      const state = useVoiceSettings();
+      return h(
+        'div',
+        { className: 'tts-set-row' },
+        h(
+          'div',
+          { className: 'tts-set-text' },
+          h('div', { className: 'tts-set-title' }, t('dock.title')),
+          h('div', { className: 'tts-set-hint' }, t('settings.hint')),
+        ),
+        h(VoiceSettingsControls, { t, state }),
+      );
+    }
+
+    /** Whether a Plugins-page subject is this plugin's own bundle or row. */
+    function isOwnSubject(subject) {
+      if (subject === null || typeof subject !== 'object') return false;
+      if (subject.kind !== 'bundle' && subject.kind !== 'row') return false;
+      return subject.pkg?.name === PLUGIN_PACKAGE;
+    }
+
+    /** Plugin page section: the voice controls on this bundle's Plugins page. */
+    function VoiceSettingsSection({ t = (key) => key, subject }) {
+      if (!isOwnSubject(subject)) return null;
+      // Mounted only on this plugin's own page, so the polling lives in the panel.
+      return h(VoiceSettingsPanel, { t });
+    }
+
+    /** Mounted section body; separate so hooks run only when the section shows. */
+    function VoiceSettingsPanel({ t }) {
+      const state = useVoiceSettings();
+      return h(
+        'section',
+        { className: 'tts-set-section', 'data-plugin-tts-settings': true },
+        h(
+          'div',
+          { className: 'tts-set-text' },
+          h('h4', { className: 'tts-set-section-title' }, t('dock.title')),
+          h('p', { className: 'tts-set-hint' }, t('settings.hint')),
+        ),
+        h(VoiceSettingsControls, { t, state }),
+      );
+    }
+
+    /**
+     * Chat row for one speak_summary call: shows the spoken line and plays its
+     * cached clip through the serial queue.
+     *
+     * Only a reply that is still streaming in auto-plays. A row mounted already
+     * finished came from the restored transcript (another session, a page
+     * refresh), so it loads nothing until the user asks to play it — otherwise
+     * every visit to an old chat would replay all of its saved clips.
      */
     function SpokenSummaryRow(props) {
       const t = props.t ?? ((key, params) => key);
@@ -344,41 +628,92 @@ window.__ModuleLoader__.load({
       const audioId = typeof meta?.audioId === 'string' ? meta.audioId : '';
       const seconds = typeof meta?.seconds === 'number' ? meta.seconds : 0;
       const preview = typeof meta?.text === 'string' ? meta.text : '';
+      const kind = meta?.kind === 'intro' ? 'intro' : meta?.kind === 'progress' ? 'progress' : 'summary';
       const failed = phase === 'result' && (block.isError === true || audioId === '');
+      /** Whether this row appeared while the call was running (live reply). */
+      const liveRef = React.useRef(phase !== 'result');
+      const autoPlayedRef = React.useRef(false);
+      const aliveRef = React.useRef(true);
+      const attemptRef = React.useRef(0);
+      const jobKeyRef = React.useRef({});
       const [status, setStatus] = React.useState('idle');
       const [error, setError] = React.useState('');
       const audioRef = React.useRef(null);
       const urlRef = React.useRef('');
-      const startedRef = React.useRef(false);
 
-      React.useEffect(() => {
-        if (audioId === '') return undefined;
-        let cancelled = false;
+      /** Fetch the clip once and keep the element for later replays. */
+      const load = React.useCallback(async () => {
+        if (audioRef.current !== null) return audioRef.current;
+        const response = await request({ action: 'audio', id: audioId });
+        const blob = await response.blob();
+        if (!aliveRef.current) throw new Error('the spoken summary row was unmounted');
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        urlRef.current = url;
+        audioRef.current = audio;
+        return audio;
+      }, [audioId]);
+
+      /** Load the clip if needed, then hand it to the serial playback queue. */
+      const start = React.useCallback(async () => {
+        const attempt = attemptRef.current + 1;
+        attemptRef.current = attempt;
         setStatus('loading');
         setError('');
-        (async () => {
-          try {
-            const response = await request({ action: 'audio', id: audioId });
-            const blob = await response.blob();
-            if (cancelled) return;
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            urlRef.current = url;
-            audioRef.current = audio;
-            audio.addEventListener('ended', () => setStatus('ready'));
-            setStatus('ready');
-            if (read().enabled === true && !startedRef.current) {
-              startedRef.current = true;
-              audio.play().then(() => setStatus('playing')).catch(() => setStatus('ready'));
-            }
-          } catch (failure) {
-            if (cancelled) return;
-            setStatus('failed');
-            setError(failureText(failure));
-          }
-        })();
+        let audio;
+        try {
+          audio = await load();
+        } catch (failure) {
+          if (!aliveRef.current || attemptRef.current !== attempt) return;
+          setStatus('failed');
+          setError(failureText(failure));
+          return;
+        }
+        if (!aliveRef.current || attemptRef.current !== attempt) {
+          if (!aliveRef.current) playback.release({ audio, url: urlRef.current });
+          return;
+        }
+        const queued = playback.enqueue({
+          key: jobKeyRef.current,
+          audio,
+          url: urlRef.current,
+          started: () => {
+            if (aliveRef.current && attemptRef.current === attempt) setStatus('playing');
+          },
+          ended: () => {
+            if (aliveRef.current && attemptRef.current === attempt) setStatus('ready');
+          },
+          failed: () => {
+            if (aliveRef.current && attemptRef.current === attempt) setStatus('ready');
+          },
+        });
+        if (queued) setStatus('queued');
+        else if (playback.active !== null && playback.active.key === jobKeyRef.current) setStatus('playing');
+        else setStatus('ready');
+      }, [load]);
+
+      React.useEffect(() => {
+        aliveRef.current = true;
+        if (audioId === '') return undefined;
+        setStatus('idle');
+        setError('');
+        if (liveRef.current && !autoPlayedRef.current && read().enabled === true) {
+          autoPlayedRef.current = true;
+          void start();
+        }
         return () => {
-          cancelled = true;
+          aliveRef.current = false;
+          attemptRef.current += 1;
+          const active = playback.active;
+          if (active !== null && active.key === jobKeyRef.current) {
+            // Switching sessions must not cut a clip mid-sentence: hand the
+            // playing element to the queue and let it finish, then clean up.
+            playback.detach(jobKeyRef.current);
+            audioRef.current = null;
+            urlRef.current = '';
+            return;
+          }
+          playback.cancel(jobKeyRef.current);
           const audio = audioRef.current;
           if (audio !== null) {
             audio.pause();
@@ -389,21 +724,20 @@ window.__ModuleLoader__.load({
             urlRef.current = '';
           }
         };
-      }, [audioId]);
+      }, [audioId, start]);
 
       const playing = status === 'playing';
       const toggle = () => {
-        const audio = audioRef.current;
-        if (audio === null) return;
-        if (playing) {
-          audio.pause();
+        if (status === 'loading' || status === 'failed') return;
+        if (playing || status === 'queued') {
+          attemptRef.current += 1;
+          playback.cancel(jobKeyRef.current);
+          const audio = audioRef.current;
+          if (audio !== null) audio.pause();
           setStatus('ready');
-        } else {
-          audio.play().then(() => setStatus('playing')).catch((failure) => {
-            setStatus('failed');
-            setError(failureText(failure));
-          });
+          return;
         }
+        void start();
       };
 
       if (phase !== 'result') {
@@ -424,11 +758,18 @@ window.__ModuleLoader__.load({
         );
       }
 
+      const label = status === 'loading'
+        ? t('summary.loading')
+        : status === 'queued'
+          ? t('summary.queued')
+          : playing ? t('summary.stop') : t('summary.play');
+
       return h(
         'div',
         { className: 'tts-summary-row' },
         h('span', { 'aria-hidden': true }, h(SpeakerIcon, { active: true })),
-        h('span', { className: 'tts-summary-text', title: preview }, preview === '' ? t('summary.title') : preview),
+        kind !== 'summary' && preview !== '' ? h('span', { className: 'tts-summary-meta' }, t(kind === 'intro' ? 'summary.intro' : 'summary.progress')) : null,
+        h('span', { className: 'tts-summary-text', title: preview }, preview === '' ? t(kind === 'intro' ? 'summary.intro' : kind === 'progress' ? 'summary.progress' : 'summary.title') : preview),
         seconds > 0 ? h('span', { className: 'tts-summary-meta' }, t('summary.seconds', { seconds })) : null,
         h(
           'button',
@@ -440,7 +781,7 @@ window.__ModuleLoader__.load({
             onClick: toggle,
           },
           h(PlayIcon, { playing }),
-          h('span', null, status === 'loading' ? t('summary.loading') : (playing ? t('summary.stop') : t('summary.play'))),
+          h('span', null, label),
         ),
         error !== '' ? h('span', { className: 'tts-summary-meta' }, t('summary.failed')) : null,
       );
@@ -487,6 +828,30 @@ window.__ModuleLoader__.load({
               label: () => translate('dock.title'),
             },
             VoiceRepliesDock,
+          ),
+        );
+
+        ctx.slots.inject('settings.general.item', () =>
+          ctx.slots.register(
+            {
+              name: 'settings.general.item',
+              id: 'tts-ru-voice',
+              order: 25,
+              locale: NS,
+            },
+            VoiceSettingsRow,
+          ),
+        );
+
+        ctx.slots.inject('plugins.detail.section', () =>
+          ctx.slots.register(
+            {
+              name: 'plugins.detail.section',
+              id: 'tts-ru-voice',
+              order: 20,
+              locale: NS,
+            },
+            VoiceSettingsSection,
           ),
         );
 
