@@ -1,6 +1,6 @@
 # Voice assistant (local, Russian)
 
-A DSH plugin that adds a floating animated orb to the conversation. Clicking it
+A DSH plugin that adds a microphone button to the conversation. Pressing it
 opens a hands-free voice mode: the microphone stays open, speech is transcribed
 locally (official speech Remote, GigaAM provider), the model answers through the
 chat and speaks its lines through `assistant_say`, and the user can interrupt the
@@ -18,7 +18,7 @@ synthesizes with `sherpa-onnx` Piper Russian voices. No cloud TTS/STT is used.
   phase, `progress` at meaningful milestones) and to finish every turn with one
   `reply` call containing the spoken answer. The Host synthesizes the line and
   caches the WAV in memory; the browser plays it.
-- **Floating orb** in the conversation, states: idle, listening, thinking,
+- **Microphone button** in the conversation, states: idle, listening, thinking,
   speaking; the panel shows the live level ring, the last heard utterance, the
   last spoken line, and the voice picker.
 - **Voice loop**: VAD (RMS with hysteresis) opens the utterance, `MediaRecorder`
@@ -36,12 +36,12 @@ synthesizes with `sherpa-onnx` Piper Russian voices. No cloud TTS/STT is used.
   (`calm`/`neutral`/`expressive`) and tempo (`slow`/`normal`/`fast`) presets.
   The selected voice's grammatical gender is reflected in spoken self-reference.
 
-## Orb controls and settings
+## Button controls and settings
 
-- **Press and hold the orb** to talk: push mode arms the microphone for exactly
+- **Press and hold the button** to talk: push mode arms the microphone for exactly
   that press, so a click starts listening immediately without opening any panel.
   Releasing sends the utterance.
-- **Right-click the orb** opens the compact panel (status, quick controls, close).
+- **Right-click the button** opens the compact panel (status, quick controls, close).
   Escape closes voice mode.
 - **Settings live in the normal Settings surfaces**: Settings → General has a
   “Voice assistant” row, and the plugin's page under **Plugins** has the same
