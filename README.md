@@ -4,7 +4,7 @@
 DSH-бандл: папка плагина и есть его источник, в профиль она подключается ссылкой
 (`link:`), поэтому правки подхватываются после переустановки бандла или перезапуска.
 
-Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm-скоуп `@apopov-app`, имя пакета — `@app-apopov/dsh-<папка>`.
+Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm-скоуп `@app-apopov`, имя пакета — `@app-apopov/dsh-<папка>`.
 
 ## Состав
 
