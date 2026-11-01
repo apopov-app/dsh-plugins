@@ -50,7 +50,7 @@ payload. The model sees only the Session it was started in.
 ```yaml
 - insert:
     - id: anonymous-session
-      name: '@apopov-app/dsh-anonymous-session'
+      name: '@app-apopov/dsh-anonymous-session'
 ```
 
 The package needs no dependencies and no build step; the browser half ships as

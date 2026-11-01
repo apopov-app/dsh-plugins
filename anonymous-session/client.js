@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@apopov-app/dsh-anonymous-session',
+  id: '@app-apopov/dsh-anonymous-session',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
@@ -220,8 +220,8 @@ window.__ModuleLoader__.load({
 
         ctx.effect(() => {
           const tag = document.createElement('style');
-          tag.dataset.plugin = '@apopov-app/dsh-anonymous-session';
-          tag.dataset.pluginCss = '@apopov-app/dsh-anonymous-session/starter.css';
+          tag.dataset.plugin = '@app-apopov/dsh-anonymous-session';
+          tag.dataset.pluginCss = '@app-apopov/dsh-anonymous-session/starter.css';
           tag.textContent = CSS;
           document.head.appendChild(tag);
           return () => {

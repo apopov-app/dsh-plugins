@@ -56,7 +56,7 @@ Two scripts regenerate the browser half of the pack (`../client.js`) from data:
 
    ```sh
    node build-client.mjs
-   plugin_manager remove_bundle @apopov-app/dsh-locale-ru
+   plugin_manager remove_bundle @app-apopov/dsh-locale-ru
    plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
    ```
 

@@ -4,17 +4,17 @@
 DSH-бандл: папка плагина и есть его источник, в профиль она подключается ссылкой
 (`link:`), поэтому правки подхватываются после переустановки бандла или перезапуска.
 
-Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm-скоуп `@apopov-app`, имя пакета — `@apopov-app/dsh-<папка>`.
+Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm-скоуп `@apopov-app`, имя пакета — `@app-apopov/dsh-<папка>`.
 
 ## Состав
 
 | Папка | Пакет | Что делает |
 |---|---|---|
-| [`anonymous-session/`](anonymous-session/README.md) | `@apopov-app/dsh-anonymous-session` 1.0.2 | Кнопка **«Новая анонимная сессия»** в левом сайдбаре: открывает стандартный интерфейс диалога в отдельном рабочем пространстве без выбора папки проекта. |
-| [`locale-ru/`](locale-ru/README.md) | `@apopov-app/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
-| [`voice-assistant/`](voice-assistant/README.md) | `@apopov-app/dsh-voice-assistant` 0.1.0 | Плавающая орбита и полный голосовой режим: локальное распознавание GigaAM, озвучка через `assistant_say`, barge-in и выбор голоса. |
-| [`delete-session/`](delete-session/README.md) | `@apopov-app/dsh-delete-session` 0.1.0 | Пункт **«Удалить диалог навсегда»** в меню сессии: останавливает работу и стирает журнал, кэш проекций и учёт в рабочем пространстве — без архива и без возможности восстановить. |
-| [`engram-memory/`](engram-memory/README.md) | `@apopov-app/dsh-engram-memory` 0.1.0 | Память в локальном Engram: `memory_save` / `memory_search` / `memory_context`, проект — `<имя папки>-<хэш пути>`, плюс общий слой `global`. |
+| [`anonymous-session/`](anonymous-session/README.md) | `@app-apopov/dsh-anonymous-session` 1.0.2 | Кнопка **«Новая анонимная сессия»** в левом сайдбаре: открывает стандартный интерфейс диалога в отдельном рабочем пространстве без выбора папки проекта. |
+| [`locale-ru/`](locale-ru/README.md) | `@app-apopov/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
+| [`voice-assistant/`](voice-assistant/README.md) | `@app-apopov/dsh-voice-assistant` 0.1.0 | Плавающая орбита и полный голосовой режим: локальное распознавание GigaAM, озвучка через `assistant_say`, barge-in и выбор голоса. |
+| [`delete-session/`](delete-session/README.md) | `@app-apopov/dsh-delete-session` 0.1.0 | Пункт **«Удалить диалог навсегда»** в меню сессии: останавливает работу и стирает журнал, кэш проекций и учёт в рабочем пространстве — без архива и без возможности восстановить. |
+| [`engram-memory/`](engram-memory/README.md) | `@app-apopov/dsh-engram-memory` 0.1.0 | Память в локальном Engram: `memory_save` / `memory_search` / `memory_context`, проект — `<имя папки>-<хэш пути>`, плюс общий слой `global`. |
 
 ### anonymous-session
 
@@ -116,7 +116,7 @@ plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/eng
 `node_modules` профиля и включает бандл. Переустановка (если плагин уже стоит):
 
 ```sh
-plugin_manager remove_bundle @apopov-app/dsh-locale-ru
+plugin_manager remove_bundle @app-apopov/dsh-locale-ru
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
 ```
 
@@ -169,7 +169,7 @@ cd ../delete-session && npm publish --access public
 cd ../engram-memory && npm publish --access public
 ```
 
-Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3`, `@apopov-app/dsh-voice-assistant@0.1.0`, `@apopov-app/dsh-delete-session@0.1.0` и `@apopov-app/dsh-engram-memory@0.1.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
+Пользователи ставят их как `@app-apopov/dsh-anonymous-session@1.0.2`, `@app-apopov/dsh-locale-ru@1.0.3`, `@app-apopov/dsh-voice-assistant@0.1.0`, `@app-apopov/dsh-delete-session@0.1.0` и `@app-apopov/dsh-engram-memory@0.1.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
 
 `engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `voice-assistant` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модели скачиваются при первом использовании.
 

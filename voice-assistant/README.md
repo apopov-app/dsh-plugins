@@ -92,8 +92,8 @@ the failure reason instead of staying silent.
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/voice-assistant
 ```
 
-Then restart the app. The old local plugins (`@apopov-app/dsh-tts-ru` and
-`@apopov-app/dsh-stt-gigaam`) are no longer part of the profile; their model
+Then restart the app. The old local plugins (`@app-apopov/dsh-tts-ru` and
+`@app-apopov/dsh-stt-gigaam`) are no longer part of the profile; their model
 caches are reused. The official voice-input bundle stays enabled because it
 mounts the speech Remote used by this plugin.
 

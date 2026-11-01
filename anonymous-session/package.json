@@ -1,5 +1,5 @@
 {
-  "name": "@apopov-app/dsh-anonymous-session",
+  "name": "@app-apopov/dsh-anonymous-session",
   "version": "1.0.2",
   "description": "Sidebar launcher that opens the standard DSH conversation in a project-free anonymous workspace.",
   "license": "MIT",

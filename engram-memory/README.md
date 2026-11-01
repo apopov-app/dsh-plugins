@@ -1,4 +1,4 @@
-# @apopov-app/dsh-engram-memory
+# @app-apopov/dsh-engram-memory
 
 Память для DSH поверх локального [Engram](https://github.com/Gentleman-Programming/engram): три инструмента, которые сами находят проект по рабочей папке сессии и держат общий слой для всех проектов.
 
@@ -28,7 +28,7 @@ pnpm add link:/Users/ruelephant/dev-project/deepseek/plugins/engram-memory
 Затем имя бандла добавляется в `dsh.profile.bundles` в `package.json` профиля:
 
 ```json
-"@apopov-app/dsh-engram-memory"
+"@app-apopov/dsh-engram-memory"
 ```
 
 Плагин подхватывается без перезапуска, когда DSH перечитывает состав профиля.
@@ -44,7 +44,7 @@ pnpm add link:/Users/ruelephant/dev-project/deepseek/plugins/engram-memory
 
 ```yaml
 - id: engram-memory
-  name: '@apopov-app/dsh-engram-memory'
+  name: '@app-apopov/dsh-engram-memory'
   config:
     command: /Users/ruelephant/go/bin/engram
     port: 7437

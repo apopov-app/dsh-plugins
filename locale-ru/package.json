@@ -1,5 +1,5 @@
 {
-  "name": "@apopov-app/dsh-locale-ru",
+  "name": "@app-apopov/dsh-locale-ru",
   "version": "1.0.3",
   "description": "Russian language pack for the DSH Web client: registers the ru language and translates the shipped client UI.",
   "license": "MIT",

@@ -1,5 +1,5 @@
 {
-  "name": "@apopov-app/dsh-voice-assistant",
+  "name": "@app-apopov/dsh-voice-assistant",
   "version": "0.1.0",
   "description": "Voice assistant for DSH: a floating orb opens a full voice conversation with barge-in, local Russian speech recognition (GigaAM) and local Piper speech synthesis.",
   "license": "MIT",

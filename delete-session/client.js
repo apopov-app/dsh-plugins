@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@apopov-app/dsh-delete-session',
+  id: '@app-apopov/dsh-delete-session',
   factory(require) {
     const React = require('react');
     const { createPortal } = require('react-dom');
@@ -386,8 +386,8 @@ window.__ModuleLoader__.load({
 
         ctx.effect(() => {
           const tag = document.createElement('style');
-          tag.dataset.plugin = '@apopov-app/dsh-delete-session';
-          tag.dataset.pluginCss = '@apopov-app/dsh-delete-session/dialog.css';
+          tag.dataset.plugin = '@app-apopov/dsh-delete-session';
+          tag.dataset.pluginCss = '@app-apopov/dsh-delete-session/dialog.css';
           tag.textContent = CSS;
           document.head.appendChild(tag);
           return () => {

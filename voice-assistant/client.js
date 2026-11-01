@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@apopov-app/dsh-voice-assistant',
+  id: '@app-apopov/dsh-voice-assistant',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     /** Document-relative form of the Host route. */
     const ROUTE = 'api/voice-assistant';
     /** Package name, used for the injected stylesheet bookkeeping. */
-    const PACKAGE_NAME = '@apopov-app/dsh-voice-assistant';
+    const PACKAGE_NAME = '@app-apopov/dsh-voice-assistant';
 
     /** Microphone voice activity detection, in RMS units. */
     const VAD_OPEN = 0.02;

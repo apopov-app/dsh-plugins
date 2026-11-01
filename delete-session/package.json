@@ -1,5 +1,5 @@
 {
-  "name": "@apopov-app/dsh-delete-session",
+  "name": "@app-apopov/dsh-delete-session",
   "version": "0.1.0",
   "description": "Permanently delete a DSH dialog from the Session menu: stops its work, erases its log, projections, and workspace accounting instead of archiving it.",
   "license": "MIT",

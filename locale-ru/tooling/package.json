@@ -1,5 +1,5 @@
 {
-  "name": "@apopov-app/dsh-locale-ru-tooling",
+  "name": "@app-apopov/dsh-locale-ru-tooling",
   "private": true,
   "type": "module",
   "description": "Extraction and build scripts for the Russian language pack dictionaries.",

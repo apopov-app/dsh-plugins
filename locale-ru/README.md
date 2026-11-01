@@ -19,7 +19,7 @@ A DSH client plugin that adds **Русский** to the language selector and tr
 ```yaml
 - insert:
     - id: locale-ru
-      name: '@apopov-app/dsh-locale-ru'
+      name: '@app-apopov/dsh-locale-ru'
 ```
 
 ## Install

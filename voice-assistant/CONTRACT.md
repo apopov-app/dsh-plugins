@@ -1,7 +1,7 @@
 # Voice-assistant plugin — build contract (v1 MVP)
 
 Package root: `/Users/ruelephant/dev-project/deepseek/plugins/voice-assistant`
-Package name: `@apopov-app/dsh-voice-assistant`
+Package name: `@app-apopov/dsh-voice-assistant`
 Plain JS, no build step, ESM host half (`index.js`, `worker.js`, `gigaam.js`,
 `stt-worker.js`) and a hand-written client bundle (`client.js`). This bundle
 started as a fork of the former `tts-ru` plugin; that package has since been
@@ -76,7 +76,7 @@ Voice presets (ids must match `tts-ru/index.js`):
 
 ## Client half (`client.js`)
 
-Format: `window.__ModuleLoader__.load({ id: '@apopov-app/dsh-voice-assistant', factory(require) { ... return { inject: [...], apply(ctx) {...} } } });`
+Format: `window.__ModuleLoader__.load({ id: '@app-apopov/dsh-voice-assistant', factory(require) { ... return { inject: [...], apply(ctx) {...} } } });`
 Baseline `require` modules available: `react`, `react-dom`, `react/jsx-runtime`,
 `@deepseek-ai/dsh-client-ui-primitives`. Use `require('react-dom')` +
 `createPortal` to render a fixed-position floating layer into `document.body`.
