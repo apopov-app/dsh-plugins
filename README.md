@@ -4,7 +4,7 @@
 DSH-бандл: папка плагина и есть его источник, в профиль она подключается ссылкой
 (`link:`), поэтому правки подхватываются после переустановки бандла или перезапуска.
 
-Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm: `@apopov-app/dsh-anonymous-session`, `@apopov-app/dsh-locale-ru`
+Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm-скоуп `@apopov-app`, имя пакета — `@apopov-app/dsh-<папка>`.
 
 ## Состав
 
@@ -14,6 +14,7 @@ DSH-бандл: папка плагина и есть его источник, �
 | [`locale-ru/`](locale-ru/README.md) | `@apopov-app/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
 | [`stt-gigaam/`](stt-gigaam/README.md) | `@apopov-app/dsh-stt-gigaam` 1.0.1 | Локальный провайдер распознавания русской речи для голосового ввода: GigaAM v3 (CTC, ONNX) через `sherpa-onnx`, без облака. |
 | [`tts-ru/`](tts-ru/README.md) | `@apopov-app/dsh-tts-ru` 1.0.0 | Локальная озвучка русских выжимок: инструмент `speak_summary` + переключатель-динамик, голоса Piper, без облака. |
+| [`voice-assistant/`](voice-assistant/README.md) | `@apopov-app/dsh-voice-assistant` 0.1.0 | Плавающая орбита и полный голосовой режим: локальное распознавание GigaAM, озвучка через `assistant_say`, barge-in и выбор голоса. |
 | [`delete-session/`](delete-session/README.md) | `@apopov-app/dsh-delete-session` 0.1.0 | Пункт **«Удалить диалог навсегда»** в меню сессии: останавливает работу и стирает журнал, кэш проекций и учёт в рабочем пространстве — без архива и без возможности восстановить. |
 | [`engram-memory/`](engram-memory/README.md) | `@apopov-app/dsh-engram-memory` 0.1.0 | Память в локальном Engram: `memory_save` / `memory_search` / `memory_context`, проект — `<имя папки>-<хэш пути>`, плюс общий слой `global`. |
 
@@ -70,6 +71,23 @@ DSH-бандл: папка плагина и есть его источник, �
   скачиваются в рантайме; сами данные GPL/«unknown licence» — в репозиторий не
   кладём, плагин остаётся MIT). Подробности — в [`tts-ru/README.md`](tts-ru/README.md).
 
+### voice-assistant
+
+- Плавающая орбита в диалоге и полноценный голосовой режим: микрофон открыт, речь
+  распознаётся локально, ответ модели озвучивается инструментом `assistant_say`
+  (`intro` / `progress` / `reply`), а перебить ассистента можно, просто начав говорить
+  (barge-in).
+- Регистрирует собственный русский распознаватель (GigaAM v3 CTC, ONNX через
+  `sherpa-onnx`), поэтому для голосового режима отдельный `stt-gigaam` не нужен; синтез —
+  те же Piper-голоса, что у `tts-ru`.
+- Голоса: русские `irina`, `dmitri`, `denis`, `ruslan` и английский
+  `en_US-lessac-medium`; интонация и темп — пресетами. Настройки лежат в
+  Settings → General и на странице плагина, состояние — в
+  `$DSH_HOME/voice-assistant/state.json`.
+- Требует `sherpa-onnx-node` и сетевого доступа при первом выборе голоса (модели
+  скачиваются в `$DSH_HOME/voice-assistant`). Подробности — в
+  [`voice-assistant/README.md`](voice-assistant/README.md).
+
 ### delete-session
 
 - Пункт **«Удалить диалог навсегда»** (`sidebar.workspaces.session.menu.item`, order 500,
@@ -120,6 +138,9 @@ DSH-бандл: папка плагина и есть его источник, �
 ```sh
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/anonymous-session
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/stt-gigaam
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/tts-ru
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/voice-assistant
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/delete-session
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/engram-memory
 ```
@@ -145,12 +166,17 @@ dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh
 dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh-plugins.git#${SHA}&path:/locale-ru"
 ```
 
-Те же строки принимает **Plugins → Add plugin** в Web-интерфейсе. Пинить стоит полный SHA, а не ветку: установка воспроизводима и не поменяется от новых пушей. Проверено: `pnpm add` ставит оба пакета из этого репозитория, `dsh.bundle` и клиентские бандлы на месте.
+Строка та же для любой папки: замените `path:/<папка>` на нужную (`stt-gigaam`, `tts-ru`, `voice-assistant`, `delete-session`, `engram-memory`).
+
+Те же строки принимает **Plugins → Add plugin** в Web-интерфейсе. Пинить стоит полный SHA, а не ветку: установка воспроизводима и не поменяется от новых пушей. Проверено: `pnpm add` ставит пакеты из этого репозитория, `dsh.bundle` и клиентские бандлы на месте.
 
 ## Требования
 
 - DeepSeek Harness Desktop, версия клиента **0.2.1-rc.5** (языковой пакет собран из
-  `dsh-v0.2.1-rc.5`). Плагины не имеют зависимостей и шага сборки.
+  `dsh-v0.2.1-rc.5`). Шага сборки у плагинов нет: папка и есть готовый бандл.
+- `stt-gigaam`, `tts-ru` и `voice-assistant` зависят от `sherpa-onnx-node` — при установке
+  из npm pnpm поставит его сам, модели голосов и распознавания скачиваются при первом
+  использовании.
 - Node.js нужен только для инструментов перегенерации языкового пакета (см.
   [`locale-ru/tooling/README.md`](locale-ru/tooling/README.md)).
 
@@ -163,6 +189,7 @@ cd plugins/anonymous-session && npm pack --dry-run
 cd ../locale-ru && npm pack --dry-run
 cd ../stt-gigaam && npm pack --dry-run
 cd ../tts-ru && npm pack --dry-run
+cd ../voice-assistant && npm pack --dry-run
 cd ../delete-session && npm pack --dry-run
 cd ../engram-memory && npm pack --dry-run
 ```
@@ -175,13 +202,14 @@ cd plugins/anonymous-session && npm publish --access public
 cd ../locale-ru && npm publish --access public
 cd ../stt-gigaam && npm publish --access public
 cd ../tts-ru && npm publish --access public
+cd ../voice-assistant && npm publish --access public
 cd ../delete-session && npm publish --access public
 cd ../engram-memory && npm publish --access public
 ```
 
-Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3` `@apopov-app/dsh-stt-gigaam@1.0.1` `@apopov-app/dsh-tts-ru@1.0.0` и `@apopov-app/dsh-delete-session@0.1.0` и `@apopov-app/dsh-engram-memory@0.1.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
+Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3`, `@apopov-app/dsh-stt-gigaam@1.0.1`, `@apopov-app/dsh-tts-ru@1.0.0`, `@apopov-app/dsh-voice-assistant@0.1.0`, `@apopov-app/dsh-delete-session@0.1.0` и `@apopov-app/dsh-engram-memory@0.1.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
 
-`engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `stt-gigaam` и `tts-ru` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модели скачиваются при первом использовании.
+`engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `stt-gigaam`, `tts-ru` и `voice-assistant` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модели скачиваются при первом использовании.
 
 ## Ограничения
 
