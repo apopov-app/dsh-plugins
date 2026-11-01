@@ -25,6 +25,12 @@ const PROJECT_PORT_START = 7440
 const PROJECT_PORT_END = 7499
 /** How many project databases may stay running before the oldest is stopped. */
 const MAX_PROJECT_SERVICES = 8
+/** Authenticated route the client half uses to browse and edit memory. */
+const ROUTE_PATH = '/api/engram-memory'
+/** File that remembers which project databases this machine has opened. */
+const REGISTRY_FILE = 'projects.json'
+/** Most memories one settings-page listing returns. */
+const LIST_LIMIT = 200
 /** Local Engram HTTP port used when the profile does not configure another one. */
 const DEFAULT_PORT = 7437
 /** System-prompt section that teaches the model the memory protocol. */
@@ -134,6 +140,40 @@ function prepareDatabaseDirectory(dbDirectory) {
     fs.writeFileSync(ignore, '*\n', { flag: 'wx' })
   } catch {
     // The ignore file already exists or the folder is read-only; the database still works.
+  }
+}
+
+/** Directory of the per-machine project registry. */
+function registryDirectory() {
+  return path.join(os.homedir(), '.dsh', 'engram-memory')
+}
+
+/**
+ * Read the project databases opened on this machine.
+ * @returns the registered entries, newest last.
+ */
+function readRegistry() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(registryDirectory(), REGISTRY_FILE), 'utf8'))
+    return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry?.dbDirectory === 'string' && typeof entry?.directory === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Remember one project database so the settings page can list it after a restart.
+ * @param directory - the project folder.
+ * @param dbDirectory - its `.dsh-memory` directory.
+ */
+function rememberProject(directory, dbDirectory) {
+  const entries = readRegistry().filter((entry) => entry.dbDirectory !== dbDirectory)
+  entries.push({ directory, dbDirectory, label: path.basename(directory) || 'project', updatedAt: Date.now() })
+  try {
+    fs.mkdirSync(registryDirectory(), { recursive: true })
+    fs.writeFileSync(path.join(registryDirectory(), REGISTRY_FILE), JSON.stringify(entries.slice(-50), null, 1))
+  } catch {
+    // A read-only home only loses the settings listing, not the memory itself.
   }
 }
 
@@ -423,6 +463,7 @@ export function apply(ctx, config = {}) {
       return existing.service
     }
     prepareDatabaseDirectory(workspace.dbDirectory)
+    rememberProject(workspace.directory, workspace.dbDirectory)
     const service = new EngramService({ command: settings.command, dataDir: workspace.dbDirectory })
     projectServices.set(workspace.dbDirectory, { service, usedAt: Date.now() })
     while (projectServices.size > MAX_PROJECT_SERVICES) {
@@ -641,6 +682,72 @@ export function apply(ctx, config = {}) {
     },
   }), 'engram-memory: protocol prompt section')
 
+  /** Databases the settings page can browse: the shared one plus every project seen on this machine. */
+  const memoryProjects = () => [
+    { key: GLOBAL_PROJECT, label: GLOBAL_PROJECT, kind: 'global' },
+    ...readRegistry().map((entry) => ({ key: entry.dbDirectory, label: entry.label ?? path.basename(entry.directory), kind: 'project' })),
+  ]
+
+  /**
+   * Resolve one settings-page database key into its service and Engram project.
+   * @param key - `global` or a project database directory.
+   * @returns the service and the project name inside it.
+   */
+  const memoryTarget = (key) => {
+    if (key === GLOBAL_PROJECT) return { service: globalService, project: GLOBAL_PROJECT }
+    const entry = readRegistry().find((item) => item.dbDirectory === key)
+    if (entry === undefined) throw new Error('this project memory is unknown; use it once so it is registered')
+    return { service: serviceForProject({ directory: entry.directory, dbDirectory: entry.dbDirectory }), project: LOCAL_PROJECT }
+  }
+
+  /**
+   * Settings endpoint behind the Plugins page section.
+   * @param request - buffered POST request with `action` and its fields.
+   * @returns the JSON answer.
+   */
+  const route = async (request) => {
+    let body = {}
+    try {
+      body = await request.json()
+    } catch {
+      body = {}
+    }
+    const action = typeof body?.action === 'string' ? body.action : ''
+    try {
+      if (action === 'projects') return Response.json({ ok: true, projects: memoryProjects() })
+      if (action === 'list') {
+        const target = memoryTarget(body?.key)
+        const rows = await target.service.request(`/observations?project=${encodeURIComponent(target.project)}&limit=${LIST_LIMIT}`, {})
+        return Response.json({ ok: true, entries: Array.isArray(rows) ? rows : [] })
+      }
+      if (action === 'update' || action === 'delete') {
+        const target = memoryTarget(body?.key)
+        const id = Number(body?.id)
+        if (!Number.isInteger(id) || id <= 0) return Response.json({ ok: false, error: 'a memory id is required' })
+        if (action === 'delete') {
+          await target.service.request(`/observations/${id}`, { method: 'DELETE' })
+        } else {
+          const title = String(body?.title ?? '').trim()
+          const content = String(body?.content ?? '').trim()
+          if (title === '' || content === '') return Response.json({ ok: false, error: 'title and content are required' })
+          await target.service.request(`/observations/${id}`, { method: 'PATCH', body: JSON.stringify({ title, content }) })
+        }
+        if (target.project === GLOBAL_PROJECT) void refreshDigest()
+        return Response.json({ ok: true })
+      }
+      return Response.json({ ok: false, error: 'unknown action' }, { status: 400 })
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  ctx.effect(() => ctx.connection.fetch.register({
+    path: ROUTE_PATH,
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: route,
+  }), 'engram-memory: settings route')
+
   ctx.effect(() => () => {
     for (const { service } of projectServices.values()) service.dispose()
     globalService.dispose()
@@ -664,4 +771,4 @@ function clampLimit(value, fallback) {
 }
 
 /** Tools and the system prompt carry the whole model surface. */
-export const inject = ['tools', 'systemPrompt']
+export const inject = ['connection', 'tools', 'systemPrompt']

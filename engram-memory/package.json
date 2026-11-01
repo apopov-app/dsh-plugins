@@ -1,7 +1,7 @@
 {
   "name": "@app-apopov/dsh-engram-memory",
-  "version": "0.2.2",
-  "description": "Project-scoped memory for DSH backed by Engram: memory_save, memory_search and memory_context resolve the project from the session working directory and share one global project across workspaces.",
+  "version": "0.3.0",
+  "description": "Project-scoped memory for DSH backed by Engram: memory_save, memory_search and memory_context keep each project's memory inside its own folder, and the plugin page lets you browse, edit and delete it.",
   "license": "MIT",
   "author": "apopov-app",
   "keywords": [
@@ -16,10 +16,12 @@
     "dsh": ">=0.2.1-rc.5 <0.3.0"
   },
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./client": "./client.js"
   },
   "files": [
     "index.js",
+    "client.js",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
@@ -36,6 +38,13 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
     }
   }
 }
