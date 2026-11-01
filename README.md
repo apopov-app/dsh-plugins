@@ -101,38 +101,35 @@ DSH-бандл: папка плагина и есть его источник, �
 
 ## Установка
 
-Плагины ставятся штатным менеджером плагинов (в сессии агента или через Settings → Plugins
-нельзя указать локальный путь, поэтому используется `install_bundle`):
+Одна команда на плагин:
 
 ```sh
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/anonymous-session
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/voice-assistant
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/delete-session
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/engram-memory
+dsh plugin --profile desktop add @app-apopov/dsh-anonymous-session
+dsh plugin --profile desktop add @app-apopov/dsh-locale-ru
+dsh plugin --profile desktop add @app-apopov/dsh-voice-assistant
+dsh plugin --profile desktop add @app-apopov/dsh-delete-session
+dsh plugin --profile desktop add @app-apopov/dsh-engram-memory
 ```
 
-Установка добавляет пакет в `package.json` профиля `desktop`, линкует папку в
-`node_modules` профиля и включает бандл. Переустановка (если плагин уже стоит):
+В Web-интерфейсе то же самое — **Plugins → Add plugin** с именем пакета. Удаление:
+`dsh plugin --profile desktop remove @app-apopov/dsh-<папка>`.
 
-```sh
-plugin_manager remove_bundle @app-apopov/dsh-locale-ru
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
-```
-
-После установки/обновления клиентских бандлов **обновите страницу Harness** (⌘R); изменения
+После установки или обновления клиентских бандлов обновите страницу Harness (⌘R); изменения
 Host-половины подхватываются при следующем запуске приложения.
 
-### Установка из npm
+### Из локальной папки
 
-Опубликованные пакеты ставятся одной командой (версии — в разделе [Публикация в npm](#публикация-в-npm)):
+Пока плагин правится, его держат ссылкой на папку: менеджер плагинов принимает только spec,
+поэтому локальный путь идёт через `install_bundle`.
 
 ```sh
-dsh plugin --profile desktop add @app-apopov/dsh-engram-memory
-dsh plugin --profile desktop add @app-apopov/dsh-locale-ru
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
 ```
 
-### Установка без npm (из GitHub)
+Команда добавляет `link:` в `dependencies` профиля и включает бандл. Переустановка —
+`plugin_manager remove_bundle @app-apopov/dsh-locale-ru`, затем `install_bundle` снова.
+
+### Из GitHub
 
 Плагины можно ставить напрямую из этого репозитория: менеджер плагинов использует pnpm и понимает git-спеки. Для монорепозитория нужен `path:`:
 
