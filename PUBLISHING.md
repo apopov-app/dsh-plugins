@@ -13,7 +13,7 @@
 | `@app-apopov/dsh-locale-ru` | 1.0.3 |
 | `@app-apopov/dsh-voice-assistant` | 0.1.0 |
 | `@app-apopov/dsh-delete-session` | 0.1.0 |
-| `@app-apopov/dsh-engram-memory` | 0.1.0 |
+| `@app-apopov/dsh-engram-memory` | 0.2.2 |
 
 Проверка состава перед публикацией: `npm pack --dry-run` в папке плагина. Поле `files`
 перечисляет только нужное — `node_modules` и служебные файлы в пакет не попадают.
