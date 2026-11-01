@@ -9,13 +9,20 @@
  * one shared `global` project for facts that must travel between workspaces.
  */
 import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
 /** Project that carries memory shared by every workspace. */
 const GLOBAL_PROJECT = 'global'
+/** Project name used inside a project-local database; the folder is the identity. */
+const LOCAL_PROJECT = 'local'
+/** Directory, relative to a project, that holds its own Engram database. */
+const PROJECT_DB_DIRECTORY = '.dsh-memory'
+/** First port tried for a project-local Engram service. */
+const PROJECT_PORT_START = 7440
+/** Last port tried for a project-local Engram service. */
+const PROJECT_PORT_END = 7499
 /** Local Engram HTTP port used when the profile does not configure another one. */
 const DEFAULT_PORT = 7437
 /** System-prompt section that teaches the model the memory protocol. */
@@ -37,7 +44,7 @@ const DIGEST_TTL_MS = 30_000
 const MEMORY_TYPES = ['manual', 'decision', 'architecture', 'bugfix', 'pattern', 'config', 'discovery', 'learning']
 
 const MEMORY_PROMPT = `Engram memory is available through the tools \`memory_save\`, \`memory_search\`, and \`memory_context\`. It is a local database shared by every workspace on this machine.
-- The active project is a stable hash of the session's absolute working directory; it is derived automatically, so never pass a project name.
+- Project memory lives in the workspace folder itself (a .dsh-memory directory inside it), so it moves with the folder; it is derived automatically, so never pass a project name.
 - At the start of a new session, call \`memory_context\` before answering the first request. Before any answer that may depend on a stored rule, preference, or earlier decision, call \`memory_search\`.
 - Save proactively after a decision, a fix, a discovery, a convention, or an explicit user preference. Pass \`scope: "global"\` only for facts that must apply in every project, such as tooling choices, communication preferences, and workflow rules.
 - Save durable knowledge only: no secrets, credentials, raw tool output, or per-turn chatter.`
@@ -98,46 +105,30 @@ function canonicalPath(directory) {
 }
 
 /**
- * Build a collision-free project name from an absolute path: a readable folder
- * label plus the first eight hex digits of the path's SHA-256 digest.
- * @param directory - the canonical absolute path.
- * @returns the project name, such as `deepseek-1f3c9a04`.
- */
-function projectNameForPath(directory) {
-  const digest = createHash('sha256').update(directory).digest('hex').slice(0, 8)
-  const label = path.basename(directory)
-    .replace(/[^\p{L}\p{N}._-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, 48)
-  return `${label === '' ? 'project' : label}-${digest}`
-}
-
-/**
- * Read a repository-level project name from `.engram/config.json`.
- * @param directory - the canonical session working directory.
- * @returns the configured project name, when one exists.
- */
-function configuredProject(directory) {
-  if (directory === undefined) return undefined
-  try {
-    const parsed = JSON.parse(fs.readFileSync(path.join(directory, '.engram', 'config.json'), 'utf8'))
-    const name = parsed?.project_name
-    return typeof name === 'string' && name.trim() !== '' ? name.trim() : undefined
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * Resolve the Engram project and the directory it belongs to for one tool call.
+ * Resolve the workspace a tool call runs in: its canonical folder and the
+ * database directory that travels with it.
  * @param exec - the tool execution carrying the calling agent.
- * @returns the project name and its absolute directory; `global` has no directory.
+ * @returns the folder and its database directory, or `undefined` without a session cwd.
  */
-function resolveProject(exec) {
+function resolveWorkspace(exec) {
   const cwd = sessionCwd(exec)
-  if (cwd === undefined) return { project: GLOBAL_PROJECT, directory: undefined }
+  if (cwd === undefined) return undefined
   const directory = canonicalPath(cwd)
-  return { project: configuredProject(directory) ?? projectNameForPath(directory), directory }
+  return { directory, dbDirectory: path.join(directory, PROJECT_DB_DIRECTORY) }
+}
+
+/**
+ * Create the project's database directory and keep it out of git.
+ * @param dbDirectory - the `<project>/.dsh-memory` directory to prepare.
+ */
+function prepareDatabaseDirectory(dbDirectory) {
+  fs.mkdirSync(dbDirectory, { recursive: true })
+  const ignore = path.join(dbDirectory, '.gitignore')
+  try {
+    fs.writeFileSync(ignore, '*\n', { flag: 'wx' })
+  } catch {
+    // The ignore file already exists or the folder is read-only; the database still works.
+  }
 }
 
 /**
@@ -155,6 +146,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/**
+ * List a contiguous port range.
+ * @param start - first port.
+ * @param end - last port, inclusive.
+ * @returns the ports in ascending order.
+ */
+function portRange(start, end) {
+  const ports = []
+  for (let port = start; port <= end; port += 1) ports.push(port)
+  return ports
+}
+
 /** Trim one memory body for the model-facing projection. */
 function preview(text, limit = MAX_RENDER_CHARS) {
   const value = typeof text === 'string' ? text.trim() : ''
@@ -167,26 +170,30 @@ function preview(text, limit = MAX_RENDER_CHARS) {
  */
 class EngramService {
   #command
+  #dataDir
   #port
   #child
   #owned = false
   #starting
 
   /**
-   * @param config - resolved plugin config with optional `command` and `port`.
+   * @param config - resolved plugin config with optional `command`, `port`, and `dataDir`.
    */
   constructor(config = {}) {
     this.#command = resolveCommand(config.command)
-    this.#port = Number.isInteger(config.port) && config.port > 0 && config.port < 65_536 ? config.port : DEFAULT_PORT
+    this.#dataDir = typeof config.dataDir === 'string' && config.dataDir !== '' ? config.dataDir : undefined
+    const configured = Number.isInteger(config.port) && config.port > 0 && config.port < 65_536 ? config.port : undefined
+    this.#port = configured ?? (this.#dataDir === undefined ? DEFAULT_PORT : undefined)
   }
 
-  /** Base URL of the local service. */
+  /** Base URL of the local service; only meaningful once a port is known. */
   get base() {
     return `http://127.0.0.1:${this.#port}`
   }
 
   /** Whether a healthy Engram service already answers on the configured port. */
   async healthy() {
+    if (this.#port === undefined) return false
     try {
       const response = await fetch(`${this.base}/health`, { signal: AbortSignal.timeout(1500) })
       return response.ok
@@ -207,14 +214,37 @@ class EngramService {
   }
 
   /**
-   * Start `engram serve` and wait for its health endpoint.
+   * Start `engram serve` on the configured port, or on the first free port in the
+   * project range, and wait for its health endpoint.
    * @returns fulfillment once the service answers.
    */
   async #start() {
+    const candidates = this.#port === undefined ? portRange(PROJECT_PORT_START, PROJECT_PORT_END) : [this.#port]
+    let lastError
+    for (const port of candidates) {
+      try {
+        await this.#startOn(port)
+        this.#port = port
+        return
+      } catch (error) {
+        lastError = error
+        if (!/in use/i.test(String(error?.message ?? error))) throw error
+      }
+    }
+    throw lastError ?? new Error('no free port for engram serve')
+  }
+
+  /**
+   * Start one `engram serve` child on a concrete port.
+   * @param port - the port to bind.
+   * @returns fulfillment once the service answers on that port.
+   */
+  async #startOn(port) {
     let stderr = ''
     let exitCode
     let spawnError
-    const child = spawn(this.#command, ['serve', String(this.#port)], { stdio: ['ignore', 'ignore', 'pipe'] })
+    const environment = this.#dataDir === undefined ? process.env : { ...process.env, ENGRAM_DATA_DIR: this.#dataDir }
+    const child = spawn(this.#command, ['serve', String(port)], { stdio: ['ignore', 'ignore', 'pipe'], env: environment })
     child.stderr?.on('data', (chunk) => {
       stderr = `${stderr}${chunk}`.slice(-2000)
     })
@@ -229,7 +259,7 @@ class EngramService {
     this.#owned = true
     const deadline = Date.now() + START_TIMEOUT_MS
     while (Date.now() < deadline) {
-      if (await this.healthy()) return
+      if (await this.healthyOn(port)) return
       if (spawnError !== undefined) throw new Error(`engram could not start: ${spawnError.message}`)
       if (exitCode !== undefined) {
         throw new Error(`engram serve exited with code ${exitCode}${stderr.trim() === '' ? '' : `: ${stderr.trim()}`}`)
@@ -238,6 +268,20 @@ class EngramService {
     }
     this.dispose()
     throw new Error('engram serve did not become healthy in time')
+  }
+
+  /**
+   * Probe one port's health endpoint.
+   * @param port - the port to probe.
+   * @returns whether a healthy service answers there.
+   */
+  async healthyOn(port) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(1500) })
+      return response.ok
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -320,7 +364,7 @@ function byRecency(left, right) {
 
 /** Render one observation for the model. */
 function renderObservation(row, index) {
-  const lines = [`${index + 1}. ${row.title ?? '(untitled)'} — ${row.project ?? '?'} · ${row.created_at ?? '?'} · #${row.id ?? '?'}`]
+  const lines = [`${index + 1}. ${row.title ?? '(untitled)'} — ${row.projectLabel ?? row.project ?? '?'} · ${row.created_at ?? '?'} · #${row.id ?? '?'}`]
   const body = preview(row.content)
   if (body !== '') lines.push(body)
   return lines.join('\n')
@@ -342,12 +386,50 @@ Call this at the start of a session or after a context compaction to recover wha
  * @param config - optional `command` and `port` for the local Engram service.
  */
 export function apply(ctx, config = {}) {
-  const service = new EngramService(config ?? {})
+  const settings = config ?? {}
+  const globalService = new EngramService(settings)
+  /** Project-local services, keyed by their database directory. */
+  const projectServices = new Map()
+
+  /**
+   * Service that owns one project's database, created on first use.
+   * @param workspace - the resolved workspace of the calling session.
+   * @returns the project-local service, or the global one without a workspace.
+   */
+  const serviceForProject = (workspace) => {
+    if (workspace === undefined) return globalService
+    const existing = projectServices.get(workspace.dbDirectory)
+    if (existing !== undefined) return existing
+    prepareDatabaseDirectory(workspace.dbDirectory)
+    const created = new EngramService({ command: settings.command, dataDir: workspace.dbDirectory })
+    projectServices.set(workspace.dbDirectory, created)
+    return created
+  }
+
   /** Cached shared-memory digest; refreshed in the background, never awaited by a request. */
   let digest = ''
   let digestAt = 0
   let digestPending
 
+  /**
+   * Services and filters one read covers: the project database plus the shared one.
+   * @param exec - the tool execution carrying the calling agent.
+   * @param all - whether to read every project in both databases.
+   * @returns one target per service, labelled for the model.
+   */
+  const searchTargets = (exec, all) => {
+    const workspace = resolveWorkspaceSafe(exec)
+    const targets = []
+    if (workspace !== undefined) {
+      targets.push({
+        service: serviceForProject(workspace),
+        project: all ? undefined : LOCAL_PROJECT,
+        label: path.basename(workspace.directory) || 'project',
+      })
+    }
+    targets.push({ service: globalService, project: all ? undefined : GLOBAL_PROJECT, label: GLOBAL_PROJECT })
+    return targets
+  }
   /**
    * Re-read the shared `global` project into the digest cache.
    * @returns fulfillment once the cache holds the current shared memories.
@@ -355,7 +437,7 @@ export function apply(ctx, config = {}) {
   const refreshDigest = async () => {
     if (digestPending !== undefined) return digestPending
     digestPending = (async () => {
-      const rows = await service.request(`/observations?project=${GLOBAL_PROJECT}&limit=${DIGEST_LIMIT}`, {})
+      const rows = await globalService.request(`/observations?project=${GLOBAL_PROJECT}&limit=${DIGEST_LIMIT}`, {})
       digest = digestText(Array.isArray(rows) ? rows : [])
       digestAt = Date.now()
     })()
@@ -409,28 +491,28 @@ export function apply(ctx, config = {}) {
       }],
     },
     execute: async (args, exec) => {
-      const target = args?.scope === 'global'
-        ? { project: GLOBAL_PROJECT, directory: undefined }
-        : resolveProjectSafe(exec)
-      const project = target.project
-      const directory = target.directory ?? ''
       const scope = args?.scope === 'global' ? 'global' : 'project'
+      const workspace = scope === 'global' ? undefined : resolveWorkspaceSafe(exec)
+      const service = scope === 'global' ? globalService : serviceForProject(workspace)
+      const project = scope === 'global' ? GLOBAL_PROJECT : LOCAL_PROJECT
+      const directory = workspace?.directory ?? ''
+      const label = scope === 'global' ? GLOBAL_PROJECT : directory === '' ? LOCAL_PROJECT : path.basename(directory)
       const type = MEMORY_TYPES.includes(args?.type) ? args.type : 'manual'
       const title = String(args?.title ?? '').trim()
       const content = String(args?.content ?? '').trim()
-      if (title === '' || content === '') return { ok: false, error: 'title and content are required', project, directory, scope, type }
+      if (title === '' || content === '') return { ok: false, error: 'title and content are required', project: label, directory, scope, type }
       const sessionId = sessionIdFor(exec, project)
       try {
-        await service.openSession(sessionId, project, target.directory)
+        await service.openSession(sessionId, project, workspace?.directory)
         const saved = await service.request('/observations', {
           method: 'POST',
           signal: exec.signal,
           body: JSON.stringify({ session_id: sessionId, project, scope, type, title, content }),
         })
         if (scope === 'global') void refreshDigest()
-        return { ok: true, id: saved?.id ?? 0, project, directory, scope, type }
+        return { ok: true, id: saved?.id ?? 0, project: label, directory, scope, type }
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error), project, directory, scope, type }
+        return { ok: false, error: error instanceof Error ? error.message : String(error), project: label, directory, scope, type }
       }
     },
   }), 'engram-memory: memory_save tool')
@@ -464,20 +546,19 @@ export function apply(ctx, config = {}) {
       const query = String(args?.query ?? '').trim()
       const limit = clampLimit(args?.limit, 8)
       if (query === '') return { ok: false, error: 'query is required', query, projects: [], results: [] }
-      const project = resolveProjectSafe(exec).project
-      const projects = args?.all === true ? [undefined] : project === GLOBAL_PROJECT ? [GLOBAL_PROJECT] : [project, GLOBAL_PROJECT]
+      const targets = searchTargets(exec, args?.all === true)
       try {
         const rows = []
-        for (const target of projects) {
+        for (const target of targets) {
           const params = new URLSearchParams({ q: query, limit: String(limit) })
-          if (target !== undefined) params.set('project', target)
-          const found = await service.request(`/search?${params.toString()}`, { signal: exec.signal })
-          if (Array.isArray(found)) rows.push(...found)
+          if (target.project !== undefined) params.set('project', target.project)
+          const found = await target.service.request(`/search?${params.toString()}`, { signal: exec.signal })
+          if (Array.isArray(found)) rows.push(...found.map((row) => ({ ...row, projectLabel: target.label })))
         }
         const results = dedupe(rows).sort(byRelevance).slice(0, limit)
-        return { ok: true, query, projects: projects.map((target) => target ?? 'all projects'), results }
+        return { ok: true, query, projects: targets.map((target) => target.label), results }
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error), query, projects: [], results: [] }
+        return { ok: false, error: error instanceof Error ? error.message : String(error), query, projects: targets.map((target) => target.label), results: [] }
       }
     },
   }), 'engram-memory: memory_search tool')
@@ -506,18 +587,18 @@ export function apply(ctx, config = {}) {
     },
     execute: async (args, exec) => {
       const limit = clampLimit(args?.limit, 5)
-      const project = resolveProjectSafe(exec).project
-      const projects = project === GLOBAL_PROJECT ? [GLOBAL_PROJECT] : [project, GLOBAL_PROJECT]
+      const targets = searchTargets(exec, false)
       try {
         const rows = []
-        for (const target of projects) {
-          const found = await service.request(`/observations?project=${encodeURIComponent(target)}&limit=${limit}`, { signal: exec.signal })
-          if (Array.isArray(found)) rows.push(...found)
+        for (const target of targets) {
+          const filter = target.project === undefined ? '' : `project=${encodeURIComponent(target.project)}&`
+          const found = await target.service.request(`/observations?${filter}limit=${limit}`, { signal: exec.signal })
+          if (Array.isArray(found)) rows.push(...found.map((row) => ({ ...row, projectLabel: target.label })))
         }
         const results = dedupe(rows).sort(byRecency).slice(0, limit)
-        return { ok: true, projects, results }
+        return { ok: true, projects: targets.map((target) => target.label), results }
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error), projects, results: [] }
+        return { ok: false, error: error instanceof Error ? error.message : String(error), projects: targets.map((target) => target.label), results: [] }
       }
     },
   }), 'engram-memory: memory_context tool')
@@ -532,15 +613,18 @@ export function apply(ctx, config = {}) {
     },
   }), 'engram-memory: protocol prompt section')
 
-  ctx.effect(() => () => service.dispose(), 'engram-memory: local service')
+  ctx.effect(() => () => {
+    for (const service of projectServices.values()) service.dispose()
+    globalService.dispose()
+  }, 'engram-memory: local services')
 }
 
-/** Resolve a project for a tool call, tolerating a missing agent context. */
-function resolveProjectSafe(exec) {
+/** Resolve the workspace for a tool call, tolerating a missing agent context. */
+function resolveWorkspaceSafe(exec) {
   try {
-    return resolveProject(exec)
+    return resolveWorkspace(exec)
   } catch {
-    return { project: GLOBAL_PROJECT, directory: undefined }
+    return undefined
   }
 }
 
