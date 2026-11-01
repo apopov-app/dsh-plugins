@@ -1,7 +1,7 @@
 # DSH-плагины
 
-Локальные плагины для DeepSeek Harness (Desktop, профиль `desktop`). Оба плагина — обычные
-DSH-бандлы: папка плагина и есть его источник, в профиль она подключается ссылкой
+Локальные плагины для DeepSeek Harness (Desktop, профиль `desktop`). Каждый — обычный
+DSH-бандл: папка плагина и есть его источник, в профиль она подключается ссылкой
 (`link:`), поэтому правки подхватываются после переустановки бандла или перезапуска.
 
 Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm: `@apopov-app/dsh-anonymous-session`, `@apopov-app/dsh-locale-ru`
@@ -14,6 +14,8 @@ DSH-бандлы: папка плагина и есть его источник,
 | [`locale-ru/`](locale-ru/README.md) | `@apopov-app/dsh-locale-ru` 1.0.3 | Русский язык для веб-клиента: язык `ru` в списке языков, 66 неймспейсов и 2918 переведённых строк, плюс несколько ru-правок вёрстки. |
 | [`stt-gigaam/`](stt-gigaam/README.md) | `@apopov-app/dsh-stt-gigaam` 1.0.1 | Локальный провайдер распознавания русской речи для голосового ввода: GigaAM v3 (CTC, ONNX) через `sherpa-onnx`, без облака. |
 | [`tts-ru/`](tts-ru/README.md) | `@apopov-app/dsh-tts-ru` 1.0.0 | Локальная озвучка русских выжимок: инструмент `speak_summary` + переключатель-динамик, голоса Piper, без облака. |
+| [`delete-session/`](delete-session/README.md) | `@apopov-app/dsh-delete-session` 0.1.0 | Пункт **«Удалить диалог навсегда»** в меню сессии: останавливает работу и стирает журнал, кэш проекций и учёт в рабочем пространстве — без архива и без возможности восстановить. |
+| [`engram-memory/`](engram-memory/README.md) | `@apopov-app/dsh-engram-memory` 0.1.0 | Память в локальном Engram: `memory_save` / `memory_search` / `memory_context`, проект — `<имя папки>-<хэш пути>`, плюс общий слой `global`. |
 
 ### anonymous-session
 
@@ -68,6 +70,40 @@ DSH-бандлы: папка плагина и есть его источник,
   скачиваются в рантайме; сами данные GPL/«unknown licence» — в репозиторий не
   кладём, плагин остаётся MIT). Подробности — в [`tts-ru/README.md`](tts-ru/README.md).
 
+### delete-session
+
+- Пункт **«Удалить диалог навсегда»** (`sidebar.workspaces.session.menu.item`, order 500,
+  отделён разделителем) в меню «...» строки сессии. Открывает подтверждение с заголовком
+  диалога и списком того, что сейчас выполняется; удаление начинается только после
+  второго клика.
+- Host-половина по маршруту `/api/delete-session` (`inspect` / `delete`):
+  останавливает работу через `workspace/session-stop` и ждёт выхода агента из `running`,
+  снимает id с архива и пина, отцепляет от учёта рабочего пространства, стирает каталог
+  журнала `$DSH_HOME/sessions/<проект>/<id>/`, кэш проекций
+  `$DSH_HOME/storages/session_projcache/sessions/<id>.json` и оповещает клиентов
+  `api-session/removed`. Дочерние диалоги подагентов удаляются каскадом; форки и вложения
+  не трогаются.
+- Требование DSH: публичного API удаления сессии нет, поэтому плагин работает с
+  документированной раскладкой JSONL-хранилища. Открытый в момент удаления диалог исчезает
+  из списка сразу, но его агент остаётся в памяти процесса до перезапуска — журнала на
+  диске к этому моменту уже нет. Подробности — в
+  [`delete-session/README.md`](delete-session/README.md).
+
+### engram-memory
+
+- Host-плагин памяти поверх локального Engram: инструменты `memory_save`, `memory_search`
+  и `memory_context`. Проект — `<имя папки>-<8 hex от sha256(realpath)>`, так что две разные
+  папки с одинаковым именем не сливаются; ни инициализации, ни имени проекта в аргументах
+  не нужно, `scope: "global"` кладёт запись в общий проект `global`.
+- Закрывает разрыв MCP-варианта: MCP-сервер памяти DSH запускается в каталоге профиля и
+  не видит папку сессии, из-за чего проект приходилось указывать руками. Локальный
+  `engram serve` плагин поднимает сам и переиспользует уже запущенный — отдельный демон
+  держать не нужно.
+- Требует установленный `engram` и базу `~/.engram/engram.db`. Сквозного поиска в Engram
+  нет, поэтому выдачу текущего проекта и `global` плагин склеивает сам; `all: true`
+  ищет по всем проектам.
+- Подробности — [`engram-memory/README.md`](engram-memory/README.md).
+
 ## Исходники клиента
 
 [`../core`](../core) — shallow-клон `deepseek-harness` на теге `dsh-v0.2.1-rc.5`, ровно той
@@ -84,6 +120,8 @@ DSH-бандлы: папка плагина и есть его источник,
 ```sh
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/anonymous-session
 plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/delete-session
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/engram-memory
 ```
 
 Установка добавляет пакет в `package.json` профиля `desktop`, линкует папку в
@@ -118,13 +156,15 @@ dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh
 
 ## Публикация в npm
 
-Все четыре пакета готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
+Пакеты готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
 
 ```sh
 cd plugins/anonymous-session && npm pack --dry-run
 cd ../locale-ru && npm pack --dry-run
 cd ../stt-gigaam && npm pack --dry-run
 cd ../tts-ru && npm pack --dry-run
+cd ../delete-session && npm pack --dry-run
+cd ../engram-memory && npm pack --dry-run
 ```
 
 Публикация (нужен npm-логин с доступом к scope `@apopov-app`; отложена, пока решается вопрос с восстановлением аккаунта):
@@ -135,9 +175,11 @@ cd plugins/anonymous-session && npm publish --access public
 cd ../locale-ru && npm publish --access public
 cd ../stt-gigaam && npm publish --access public
 cd ../tts-ru && npm publish --access public
+cd ../delete-session && npm publish --access public
+cd ../engram-memory && npm publish --access public
 ```
 
-Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3` `@apopov-app/dsh-stt-gigaam@1.0.1` и `@apopov-app/dsh-tts-ru@1.0.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
+Пользователи ставят их как `@apopov-app/dsh-anonymous-session@1.0.2`, `@apopov-app/dsh-locale-ru@1.0.3` `@apopov-app/dsh-stt-gigaam@1.0.1` `@apopov-app/dsh-tts-ru@1.0.0` и `@apopov-app/dsh-delete-session@0.1.0` и `@apopov-app/dsh-engram-memory@0.1.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
 
 `engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `stt-gigaam` и `tts-ru` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модели скачиваются при первом использовании.
 
