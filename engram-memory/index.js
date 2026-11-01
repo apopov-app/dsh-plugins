@@ -114,6 +114,21 @@ function canonicalPath(directory) {
 }
 
 /**
+ * Canonicalise a path, answering nothing when the folder is missing.
+ * @param directory - the path to resolve.
+ * @returns the resolved directory, or `undefined` when it cannot be read.
+ */
+function safeCanonical(directory) {
+  if (typeof directory !== 'string' || directory === '') return undefined
+  try {
+    const resolved = fs.realpathSync(directory)
+    return fs.statSync(resolved).isDirectory() ? resolved : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Resolve the workspace a tool call runs in: its canonical folder and the
  * database directory that travels with it.
  * @param exec - the tool execution carrying the calling agent.
@@ -144,9 +159,15 @@ function prepareDatabaseDirectory(dbDirectory) {
   }
 }
 
+/** Harness home that owns durable plugin state. */
+function harnessHome() {
+  const configured = process.env.DSH_HOME
+  return typeof configured === 'string' && configured !== '' ? configured : path.join(os.homedir(), '.dsh')
+}
+
 /** Directory of the per-machine project registry. */
 function registryDirectory() {
-  return path.join(os.homedir(), '.dsh', 'engram-memory')
+  return path.join(harnessHome(), 'engram-memory')
 }
 
 /**
@@ -771,11 +792,35 @@ export function apply(ctx, config = {}) {
     },
   }), 'engram-memory: protocol prompt section')
 
-  /** Databases the settings page can browse: the shared one plus every project seen on this machine. */
-  const memoryProjects = () => [
-    { key: GLOBAL_PROJECT, label: GLOBAL_PROJECT, kind: 'global' },
-    ...readRegistry().map((entry) => ({ key: entry.dbDirectory, label: entry.label ?? path.basename(entry.directory), kind: 'project' })),
-  ]
+  /**
+   * Databases the settings page can browse: the shared one, every DSH workspace,
+   * and every project database this machine has already used.
+   */
+  const memoryProjects = () => {
+    const projects = [{ key: GLOBAL_PROJECT, label: GLOBAL_PROJECT, kind: 'global' }]
+    const seen = new Set()
+    const workspaces = ctx.get?.('workspaceRegistry')
+    let listed = []
+    try {
+      listed = Array.isArray(workspaces?.list?.()) ? workspaces.list() : []
+    } catch {
+      listed = []
+    }
+    for (const workspace of listed) {
+      const directory = safeCanonical(workspace?.path)
+      if (directory === undefined) continue
+      const dbDirectory = path.join(directory, PROJECT_DB_DIRECTORY)
+      seen.add(dbDirectory)
+      projects.push({ key: dbDirectory, label: String(workspace?.title ?? '') || path.basename(directory), kind: 'project' })
+    }
+    for (const entry of readRegistry()) {
+      if (seen.has(entry.dbDirectory)) continue
+      if (safeCanonical(entry.directory) === undefined) continue
+      seen.add(entry.dbDirectory)
+      projects.push({ key: entry.dbDirectory, label: entry.label ?? path.basename(entry.directory), kind: 'project' })
+    }
+    return projects
+  }
 
   /**
    * Resolve one settings-page database key into its service and Engram project.
@@ -784,9 +829,11 @@ export function apply(ctx, config = {}) {
    */
   const memoryTarget = (key) => {
     if (key === GLOBAL_PROJECT) return { service: globalService, project: GLOBAL_PROJECT }
-    const entry = readRegistry().find((item) => item.dbDirectory === key)
-    if (entry === undefined) throw new Error('this project memory is unknown; use it once so it is registered')
-    return { service: serviceForProject({ directory: entry.directory, dbDirectory: entry.dbDirectory }), project: LOCAL_PROJECT }
+    const directory = safeCanonical(path.dirname(String(key ?? '')))
+    if (directory === undefined || path.basename(String(key)) !== PROJECT_DB_DIRECTORY) {
+      throw new Error('this project memory is unknown')
+    }
+    return { service: serviceForProject({ directory, dbDirectory: path.join(directory, PROJECT_DB_DIRECTORY) }), project: LOCAL_PROJECT }
   }
 
   /**
