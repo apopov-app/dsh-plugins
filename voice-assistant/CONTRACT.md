@@ -2,11 +2,12 @@
 
 Package root: `/Users/ruelephant/dev-project/deepseek/plugins/voice-assistant`
 Package name: `@apopov-app/dsh-voice-assistant`
-Plain JS, no build step, ESM host half (`index.js`, `worker.js`) and a
-hand-written client bundle (`client.js`) exactly in the style of the existing
-sibling plugin `/Users/ruelephant/dev-project/deepseek/plugins/tts-ru/` —
-read `tts-ru/index.js`, `tts-ru/worker.js`, `tts-ru/client.js` first.
-**Never modify anything under `tts-ru/`.**
+Plain JS, no build step, ESM host half (`index.js`, `worker.js`, `gigaam.js`,
+`stt-worker.js`) and a hand-written client bundle (`client.js`). This bundle
+started as a fork of the former `tts-ru` plugin; that package has since been
+folded in and removed from the repository, so its code now lives here. The
+sections below describe the original build contract and keep their historical
+wording where it names `tts-ru` as the source of the copied code.
 
 The goal: one self-contained "voice assistant": a floating animated orb next to
 the chat composer. Clicking it opens voice mode: continuous microphone
