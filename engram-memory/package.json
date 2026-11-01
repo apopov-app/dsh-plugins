@@ -1,6 +1,6 @@
 {
   "name": "@app-apopov/dsh-engram-memory",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Project-scoped memory for DSH backed by Engram: memory_save, memory_search and memory_context resolve the project from the session working directory and share one global project across workspaces.",
   "license": "MIT",
   "author": "apopov-app",

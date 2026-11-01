@@ -23,6 +23,8 @@ const PROJECT_DB_DIRECTORY = '.dsh-memory'
 const PROJECT_PORT_START = 7440
 /** Last port tried for a project-local Engram service. */
 const PROJECT_PORT_END = 7499
+/** How many project databases may stay running before the oldest is stopped. */
+const MAX_PROJECT_SERVICES = 8
 /** Local Engram HTTP port used when the profile does not configure another one. */
 const DEFAULT_PORT = 7437
 /** System-prompt section that teaches the model the memory protocol. */
@@ -122,7 +124,11 @@ function resolveWorkspace(exec) {
  * @param dbDirectory - the `<project>/.dsh-memory` directory to prepare.
  */
 function prepareDatabaseDirectory(dbDirectory) {
-  fs.mkdirSync(dbDirectory, { recursive: true })
+  try {
+    fs.mkdirSync(dbDirectory, { recursive: true })
+  } catch (error) {
+    throw new Error(`project memory cannot be created in ${dbDirectory}: ${error instanceof Error ? error.message : String(error)}`)
+  }
   const ignore = path.join(dbDirectory, '.gitignore')
   try {
     fs.writeFileSync(ignore, '*\n', { flag: 'wx' })
@@ -403,18 +409,29 @@ export function apply(ctx, config = {}) {
   const projectServices = new Map()
 
   /**
-   * Service that owns one project's database, created on first use.
+   * Service that owns one project's database, created on first use. The oldest
+   * service is stopped once the cap is reached, which bounds both the number of
+   * Engram processes and the ports they hold.
    * @param workspace - the resolved workspace of the calling session.
    * @returns the project-local service, or the global one without a workspace.
    */
   const serviceForProject = (workspace) => {
     if (workspace === undefined) return globalService
     const existing = projectServices.get(workspace.dbDirectory)
-    if (existing !== undefined) return existing
+    if (existing !== undefined) {
+      existing.usedAt = Date.now()
+      return existing.service
+    }
     prepareDatabaseDirectory(workspace.dbDirectory)
-    const created = new EngramService({ command: settings.command, dataDir: workspace.dbDirectory })
-    projectServices.set(workspace.dbDirectory, created)
-    return created
+    const service = new EngramService({ command: settings.command, dataDir: workspace.dbDirectory })
+    projectServices.set(workspace.dbDirectory, { service, usedAt: Date.now() })
+    while (projectServices.size > MAX_PROJECT_SERVICES) {
+      const oldest = [...projectServices.entries()].sort((left, right) => left[1].usedAt - right[1].usedAt)[0]
+      if (oldest === undefined) break
+      oldest[1].service.dispose()
+      projectServices.delete(oldest[0])
+    }
+    return service
   }
 
   /** Cached shared-memory digest; refreshed in the background, never awaited by a request. */
@@ -557,8 +574,8 @@ export function apply(ctx, config = {}) {
       const query = String(args?.query ?? '').trim()
       const limit = clampLimit(args?.limit, 8)
       if (query === '') return { ok: false, error: 'query is required', query, projects: [], results: [] }
-      const targets = searchTargets(exec, args?.all === true)
       try {
+        const targets = searchTargets(exec, args?.all === true)
         const rows = []
         for (const target of targets) {
           const params = new URLSearchParams({ q: query, limit: String(limit) })
@@ -569,7 +586,7 @@ export function apply(ctx, config = {}) {
         const results = dedupe(rows).sort(byRelevance).slice(0, limit)
         return { ok: true, query, projects: targets.map((target) => target.label), results }
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error), query, projects: targets.map((target) => target.label), results: [] }
+        return { ok: false, error: error instanceof Error ? error.message : String(error), query, projects: [], results: [] }
       }
     },
   }), 'engram-memory: memory_search tool')
@@ -598,8 +615,8 @@ export function apply(ctx, config = {}) {
     },
     execute: async (args, exec) => {
       const limit = clampLimit(args?.limit, 5)
-      const targets = searchTargets(exec, false)
       try {
+        const targets = searchTargets(exec, false)
         const rows = []
         for (const target of targets) {
           const filter = target.project === undefined ? '' : `project=${encodeURIComponent(target.project)}&`
@@ -609,7 +626,7 @@ export function apply(ctx, config = {}) {
         const results = dedupe(rows).sort(byRecency).slice(0, limit)
         return { ok: true, projects: targets.map((target) => target.label), results }
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error), projects: targets.map((target) => target.label), results: [] }
+        return { ok: false, error: error instanceof Error ? error.message : String(error), projects: [], results: [] }
       }
     },
   }), 'engram-memory: memory_context tool')
@@ -625,7 +642,7 @@ export function apply(ctx, config = {}) {
   }), 'engram-memory: protocol prompt section')
 
   ctx.effect(() => () => {
-    for (const service of projectServices.values()) service.dispose()
+    for (const { service } of projectServices.values()) service.dispose()
     globalService.dispose()
   }, 'engram-memory: local services')
 }
