@@ -216,28 +216,35 @@ class EngramService {
   /**
    * Start `engram serve` on the configured port, or on the first free port in the
    * project range, and wait for its health endpoint.
+   *
+   * A port that already answers is never adopted for a project database: that
+   * response may belong to another project's service, and adopting it would read
+   * and write the wrong database. The shared service on the default port is the
+   * one exception, because every profile is meant to share it.
    * @returns fulfillment once the service answers.
    */
   async #start() {
     const candidates = this.#port === undefined ? portRange(PROJECT_PORT_START, PROJECT_PORT_END) : [this.#port]
-    let lastError
     for (const port of candidates) {
-      try {
-        await this.#startOn(port)
+      if (await this.healthyOn(port)) {
+        if (this.#dataDir === undefined) {
+          this.#port = port
+          return
+        }
+        continue
+      }
+      if (await this.#startOn(port)) {
         this.#port = port
         return
-      } catch (error) {
-        lastError = error
-        if (!/in use/i.test(String(error?.message ?? error))) throw error
       }
     }
-    throw lastError ?? new Error('no free port for engram serve')
+    throw new Error(`no free port for engram serve in ${candidates[0]}-${candidates.at(-1)}`)
   }
 
   /**
    * Start one `engram serve` child on a concrete port.
    * @param port - the port to bind.
-   * @returns fulfillment once the service answers on that port.
+   * @returns whether this child owns a healthy service on that port.
    */
   async #startOn(port) {
     let stderr = ''
@@ -259,15 +266,19 @@ class EngramService {
     this.#owned = true
     const deadline = Date.now() + START_TIMEOUT_MS
     while (Date.now() < deadline) {
-      if (await this.healthyOn(port)) return
-      if (spawnError !== undefined) throw new Error(`engram could not start: ${spawnError.message}`)
       if (exitCode !== undefined) {
+        // The port was taken between the probe and the spawn; the next candidate may be free.
+        if (this.#child === child) this.#child = undefined
+        this.#owned = false
+        if (/in use|address already/i.test(stderr)) return false
         throw new Error(`engram serve exited with code ${exitCode}${stderr.trim() === '' ? '' : `: ${stderr.trim()}`}`)
       }
+      if (spawnError !== undefined) throw new Error(`engram could not start: ${spawnError.message}`)
+      if (await this.healthyOn(port)) return true
       await sleep(150)
     }
     this.dispose()
-    throw new Error('engram serve did not become healthy in time')
+    return false
   }
 
   /**
