@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Russian voice replies (local)",
-    "description": "A speak_summary tool plus a speaker toggle: the model writes a short takeaway and it is spoken offline by local Piper voices."
-  }
-}

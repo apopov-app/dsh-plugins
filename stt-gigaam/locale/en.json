@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "GigaAM Russian speech (local)",
-    "description": "Offline Russian speech recognition provider for voice input: Sber GigaAM v3 CTC running locally via sherpa-onnx."
-  }
-}
