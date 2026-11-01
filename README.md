@@ -123,6 +123,15 @@ plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/loc
 После установки/обновления клиентских бандлов **обновите страницу Harness** (⌘R); изменения
 Host-половины подхватываются при следующем запуске приложения.
 
+### Установка из npm
+
+Опубликованные пакеты ставятся одной командой (версии — в разделе [Публикация в npm](#публикация-в-npm)):
+
+```sh
+dsh plugin --profile desktop add @app-apopov/dsh-engram-memory
+dsh plugin --profile desktop add @app-apopov/dsh-locale-ru
+```
+
 ### Установка без npm (из GitHub)
 
 Плагины можно ставить напрямую из этого репозитория: менеджер плагинов использует pnpm и понимает git-спеки. Для монорепозитория нужен `path:`:
@@ -148,28 +157,26 @@ dsh plugin --profile <профиль> add "git+https://github.com/apopov-app/dsh
 
 ## Публикация в npm
 
-Пакеты готовы к публикации под scope `@apopov-app`: убраны `private`, добавлены `license`, `engines.dsh`, файл `LICENSE`, ключевые слова; display-метаданные (locale `meta`, иконка) и `files` на месте. Состав пакета:
+Все пять пакетов опубликованы под scope `@app-apopov` (организация `app-apopov`, владелец аккаунта — `ruelephant88`):
+
+| Пакет | Версия | Страница |
+|---|---|---|
+| `@app-apopov/dsh-anonymous-session` | 1.0.2 | <https://www.npmjs.com/package/@app-apopov/dsh-anonymous-session> |
+| `@app-apopov/dsh-locale-ru` | 1.0.3 | <https://www.npmjs.com/package/@app-apopov/dsh-locale-ru> |
+| `@app-apopov/dsh-voice-assistant` | 0.1.0 | <https://www.npmjs.com/package/@app-apopov/dsh-voice-assistant> |
+| `@app-apopov/dsh-delete-session` | 0.1.0 | <https://www.npmjs.com/package/@app-apopov/dsh-delete-session> |
+| `@app-apopov/dsh-engram-memory` | 0.1.0 | <https://www.npmjs.com/package/@app-apopov/dsh-engram-memory> |
+
+Проверка состава перед публикацией: `npm pack --dry-run` в папке плагина (`files` перечисляет только нужное, `node_modules` не попадает).
+
+Токен с обходом 2FA (`Bypass 2FA`) npm больше не пускает в `npm publish`: попытка возвращает `404 Not Found`, а не `403`. Опубликовать так можно только через стейджинг, а подтверждает человек:
 
 ```sh
-cd plugins/anonymous-session && npm pack --dry-run
-cd ../locale-ru && npm pack --dry-run
-cd ../voice-assistant && npm pack --dry-run
-cd ../delete-session && npm pack --dry-run
-cd ../engram-memory && npm pack --dry-run
+npm stage publish --access public   # допускается с токеном без 2FA
+npm stage approve <stage-id>        # требует 2FA: интерактивный login или веб-интерфейс
 ```
 
-Публикация (нужен npm-логин с доступом к scope `@apopov-app`; отложена, пока решается вопрос с восстановлением аккаунта):
-
-```sh
-npm login
-cd plugins/anonymous-session && npm publish --access public
-cd ../locale-ru && npm publish --access public
-cd ../voice-assistant && npm publish --access public
-cd ../delete-session && npm publish --access public
-cd ../engram-memory && npm publish --access public
-```
-
-Пользователи ставят их как `@app-apopov/dsh-anonymous-session@1.0.2`, `@app-apopov/dsh-locale-ru@1.0.3`, `@app-apopov/dsh-voice-assistant@0.1.0`, `@app-apopov/dsh-delete-session@0.1.0` и `@app-apopov/dsh-engram-memory@0.1.0` через Plugins → Add plugin, CLI `dsh plugin --profile <p> add <spec>` или агентский `plugin_manager install_bundle`.
+При стейджинге npm заводит в пакете служебную версию `0.0.0-stage` — это плейсхолдер, `latest` указывает на настоящую версию, на установку он не влияет.
 
 `engines.dsh` у всех — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента поднимите диапазон и версию пакета (для языкового пакета — ещё и перегенерируйте словари, см. `locale-ru/tooling/README.md`). У `voice-assistant` в зависимостях `sherpa-onnx-node` — при установке из npm pnpm поставит его сам; модели скачиваются при первом использовании.
 
