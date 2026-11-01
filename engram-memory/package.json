@@ -1,7 +1,7 @@
 {
   "name": "@app-apopov/dsh-engram-memory",
   "version": "0.3.0",
-  "description": "Project-scoped memory for DSH backed by Engram: memory_save, memory_search and memory_context keep each project's memory inside its own folder, and the plugin page lets you browse, edit and delete it.",
+  "description": "Project-scoped memory for DSH backed by Engram: memory_save, memory_search, memory_context and memory_delete keep each project's memory inside its own folder, and the plugin page lets you browse, edit and delete it.",
   "license": "MIT",
   "author": "apopov-app",
   "keywords": [

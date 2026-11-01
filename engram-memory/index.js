@@ -51,11 +51,12 @@ const DIGEST_TTL_MS = 30_000
 /** Observation types Engram accepts for a manual memory. */
 const MEMORY_TYPES = ['manual', 'decision', 'architecture', 'bugfix', 'pattern', 'config', 'discovery', 'learning']
 
-const MEMORY_PROMPT = `Engram memory is available through the tools \`memory_save\`, \`memory_search\`, and \`memory_context\`. It is a local database shared by every workspace on this machine.
+const MEMORY_PROMPT = `Engram memory is available through the tools \`memory_save\`, \`memory_search\`, \`memory_context\`, and \`memory_delete\`. It is a local database shared by every workspace on this machine.
 - Project memory lives in the workspace folder itself (a .dsh-memory directory inside it), so it moves with the folder; it is derived automatically, so never pass a project name.
 - At the start of a new session, call \`memory_context\` before answering the first request. Before any answer that may depend on a stored rule, preference, or earlier decision, call \`memory_search\`.
 - Save proactively after a decision, a fix, a discovery, a convention, or an explicit user preference. Pass \`scope: "global"\` only for facts that must apply in every project, such as tooling choices, communication preferences, and workflow rules.
-- Save durable knowledge only: no secrets, credentials, raw tool output, or per-turn chatter.`
+- Save durable knowledge only: no secrets, credentials, raw tool output, or per-turn chatter.
+- Remove obsolete, wrong, or user-rejected records with \`memory_delete\`: pass their ids, or \`all: true\` to empty one database. It only reaches the current project and the shared global project.`
 
 /**
  * Compose the shared-memory digest injected into every system prompt.
@@ -437,6 +438,9 @@ Call this before asking the user to repeat context, and when a past decision, fi
 const CONTEXT_DESCRIPTION = `Show the most recent memories for the current project and the shared global project.
 Call this at the start of a session or after a context compaction to recover what happened before.`
 
+const DELETE_DESCRIPTION = `Delete memories from the local Engram database: pass ids, or all=true to empty one database.
+Deletion is soft by default; hard=true removes the rows permanently. Only the current project and the shared global project can be reached, never another project's database. Use it for obsolete, wrong, or user-rejected records.`
+
 /**
  * Register the memory tools and the protocol prompt section.
  * @param ctx - Host context with Tools and the system prompt.
@@ -672,6 +676,91 @@ export function apply(ctx, config = {}) {
     },
   }), 'engram-memory: memory_context tool')
 
+  ctx.effect(() => ctx.tools.register({
+    name: 'memory_delete',
+    description: DELETE_DESCRIPTION,
+    timeoutMs: 60_000,
+    parameters: {
+      type: 'object',
+      properties: {
+        ids: {
+          type: 'array',
+          items: { type: 'integer' },
+          description: 'Ids of the memories to delete, as shown by memory_search or memory_context.',
+        },
+        all: {
+          type: 'boolean',
+          description: 'Delete every memory of the targeted database instead of listing ids. Requires scope.',
+        },
+        scope: {
+          type: 'string',
+          enum: ['project', 'global'],
+          description: 'Which database to delete from: the current project (default) or the shared global one.',
+        },
+        hard: {
+          type: 'boolean',
+          description: 'Remove the rows permanently instead of soft-deleting them. Defaults to false.',
+        },
+      },
+      additionalProperties: false,
+    },
+    output: {
+      schema: { type: 'object' },
+      render: (args, value) => [{
+        type: 'text',
+        text: value?.ok === true
+          ? `Deleted ${value.deleted.length} memor${value.deleted.length === 1 ? 'y' : 'ies'} from "${value.project}" (${value.scope}, ${value.hard ? 'hard' : 'soft'}).${value.failed.length === 0 ? '' : `\nNot deleted: ${value.failed.map((row) => `#${row.id}: ${row.error}`).join('; ')}`}`
+          : `Memory delete failed: ${String(value?.error ?? 'unknown error')}`,
+      }],
+    },
+    execute: async (args, exec) => {
+      const scope = args?.scope === 'global' ? 'global' : 'project'
+      const hard = args?.hard === true
+      const workspace = scope === 'global' ? undefined : resolveWorkspaceSafe(exec)
+      const directory = workspace?.directory ?? ''
+      const project = scope === 'global' ? GLOBAL_PROJECT : LOCAL_PROJECT
+      const label = scope === 'global' ? GLOBAL_PROJECT : directory === '' ? LOCAL_PROJECT : path.basename(directory)
+      const ids = Array.isArray(args?.ids) ? args.ids.filter((id) => Number.isInteger(id) && id > 0) : []
+      const all = args?.all === true
+      const empty = { project: label, scope, hard, deleted: [], failed: [] }
+      if (scope === 'project' && workspace === undefined) {
+        return { ok: false, error: 'project scope needs a session working directory', ...empty }
+      }
+      if (!all && ids.length === 0) return { ok: false, error: 'ids or all=true is required', ...empty }
+      const service = scope === 'global' ? globalService : serviceForProject(workspace)
+      const deleted = []
+      const failed = []
+      /** Delete one id, recording the failure instead of aborting the whole batch. */
+      const deleteOne = async (id) => {
+        try {
+          await service.request(`/observations/${id}${hard ? '?hard=1' : ''}`, { method: 'DELETE', signal: exec.signal })
+          deleted.push(id)
+        } catch (error) {
+          failed.push({ id, error: error instanceof Error ? error.message : String(error) })
+        }
+      }
+      try {
+        if (all) {
+          // Re-read after every batch: soft-deleted rows leave the listing, so the
+          // loop ends on its own and also picks up records a batch cap kept back.
+          for (;;) {
+            const batch = await listMemoryIds(service, project)
+            if (batch.length === 0) break
+            const before = deleted.length + failed.length
+            for (const id of batch) await deleteOne(id)
+            if (deleted.length + failed.length === before) break
+          }
+        } else {
+          for (const id of ids) await deleteOne(id)
+        }
+        if (scope === 'global' && deleted.length > 0) void refreshDigest()
+        return { ok: true, ...empty, deleted, failed }
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error), ...empty, deleted, failed }
+      }
+    },
+  }), 'engram-memory: memory_delete tool')
+
   ctx.effect(() => ctx.systemPrompt.section({
     name: PROMPT_SECTION,
     order: ctx.systemPrompt.getSectionOrder('TOOL_REPORT') + 10,
@@ -768,6 +857,21 @@ function clampLimit(value, fallback) {
   if (!Number.isFinite(value)) return fallback
   const limit = Math.trunc(value)
   return limit < 1 ? 1 : limit > 20 ? 20 : limit
+}
+
+/**
+ * List every live memory id in one database.
+ * @param service - the Engram service that owns the database.
+ * @param project - the Engram project to restrict the listing to.
+ * @returns the ids in listing order.
+ */
+async function listMemoryIds(service, project) {
+  const params = new URLSearchParams({ limit: String(LIST_LIMIT) })
+  if (project !== undefined) params.set('project', project)
+  const rows = await service.request(`/observations?${params.toString()}`, {})
+  return Array.isArray(rows)
+    ? rows.map((row) => Number(row.id)).filter((id) => Number.isInteger(id) && id > 0)
+    : []
 }
 
 /** Tools and the system prompt carry the whole model surface. */
