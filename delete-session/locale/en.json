@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Delete dialog permanently",
+    "description": "Adds a hard-delete row to the Session menu: stops its work, then erases the log, cached projections, and workspace accounting — no archive, no undo."
+  }
+}

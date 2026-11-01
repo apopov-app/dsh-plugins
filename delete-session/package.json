@@ -1,0 +1,57 @@
+{
+  "name": "@apopov-app/dsh-delete-session",
+  "version": "0.1.0",
+  "description": "Permanently delete a DSH dialog from the Session menu: stops its work, erases its log, projections, and workspace accounting instead of archiving it.",
+  "license": "MIT",
+  "author": "apopov-app",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "session",
+    "delete",
+    "purge"
+  ],
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apopov-app/dsh-plugins.git",
+    "directory": "delete-session"
+  },
+  "homepage": "https://github.com/apopov-app/dsh-plugins/tree/main/delete-session#readme",
+  "bugs": {
+    "url": "https://github.com/apopov-app/dsh-plugins/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}

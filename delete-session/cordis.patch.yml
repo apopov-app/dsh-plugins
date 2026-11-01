@@ -1,0 +1,3 @@
+- insert:
+    - id: delete-session
+      name: '@apopov-app/dsh-delete-session'
