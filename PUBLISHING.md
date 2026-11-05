@@ -14,7 +14,7 @@
 | `@app-apopov/dsh-anonymous-session` | 1.0.2 |
 | `@app-apopov/dsh-voice-assistant` | 0.1.0 |
 | `@app-apopov/dsh-delete-session` | 0.1.0 |
-| `@app-apopov/dsh-engram-memory` | 0.2.2 |
+| `@app-apopov/dsh-engram-memory` | 0.3.1 |
 | `@app-apopov/dsh-image-actions` | 0.1.0 (не опубликован) |
 
 Проверка состава перед публикацией: `npm pack --dry-run` в папке плагина. Поле `files`
