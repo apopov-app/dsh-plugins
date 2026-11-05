@@ -1,9 +1,0 @@
-{
-  "name": "@app-apopov/dsh-locale-ru-tooling",
-  "private": true,
-  "type": "module",
-  "description": "Extraction and build scripts for the Russian language pack dictionaries.",
-  "devDependencies": {
-    "typescript": "^5.9.3"
-  }
-}

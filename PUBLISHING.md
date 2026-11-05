@@ -5,12 +5,11 @@
 
 ## Пакеты в npm
 
-Все пять плагинов опубликованы под scope `@app-apopov` (организация `app-apopov`).
+Четыре плагина опубликованы под scope `@app-apopov` (организация `app-apopov`).
 
 | Пакет | Версия |
 |---|---|
 | `@app-apopov/dsh-anonymous-session` | 1.0.2 |
-| `@app-apopov/dsh-locale-ru` | 1.0.3 |
 | `@app-apopov/dsh-voice-assistant` | 0.1.0 |
 | `@app-apopov/dsh-delete-session` | 0.1.0 |
 | `@app-apopov/dsh-engram-memory` | 0.2.2 |
@@ -33,8 +32,7 @@ npm stage approve <stage-id>        # требует 2FA: интерактивн
 `latest` указывает на настоящую версию, на установку он не влияет.
 
 `engines.dsh` у всех пакетов — `>=0.2.1-rc.5 <0.3.0`; после обновления Desktop-клиента
-поднимите диапазон и версию пакета. Для языкового пакета дополнительно перегенерируйте
-словари (см. `locale-ru/tooling/README.md`; экстрактору нужен чекаут клиента).
+поднимите диапазон и версию пакета.
 
 ## Локальная установка для разработки
 
@@ -42,11 +40,11 @@ npm stage approve <stage-id>        # требует 2FA: интерактивн
 поэтому локальный путь идёт через `install_bundle`.
 
 ```sh
-plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/locale-ru
+plugin_manager install_bundle /Users/ruelephant/dev-project/deepseek/plugins/engram-memory
 ```
 
 Команда добавляет `link:` в `dependencies` профиля и включает бандл. Переустановка —
-`plugin_manager remove_bundle @app-apopov/dsh-locale-ru`, затем `install_bundle` снова.
+`plugin_manager remove_bundle @app-apopov/dsh-engram-memory`, затем `install_bundle` снова.
 Правки клиентской половины подхватываются после обновления страницы (⌘R), Host-половины —
 после перезапуска приложения.
 
