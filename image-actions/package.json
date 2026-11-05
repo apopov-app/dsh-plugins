@@ -1,0 +1,55 @@
+{
+  "name": "@app-apopov/dsh-image-actions",
+  "version": "0.1.0",
+  "description": "Actions menu on the full-screen image preview in DSH: copy the image, save it to Downloads, reveal it in Finder, and copy its path or link.",
+  "license": "MIT",
+  "author": "apopov-app",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "image",
+    "clipboard",
+    "finder"
+  ],
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apopov-app/dsh-plugins.git",
+    "directory": "image-actions"
+  },
+  "homepage": "https://github.com/apopov-app/dsh-plugins/tree/main/image-actions#readme",
+  "bugs": {
+    "url": "https://github.com/apopov-app/dsh-plugins/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}

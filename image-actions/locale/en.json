@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Image actions",
+    "description": "Adds an actions menu to the full-screen image preview: copy the image, save it to Downloads, reveal it in Finder, and copy its path or link."
+  }
+}

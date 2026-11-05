@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Actions on a full-screen image">
+  <defs>
+    <linearGradient id="image-actions-bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2fb3a6"/>
+      <stop offset="1" stop-color="#1f6fb8"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#image-actions-bg)"/>
+  <rect x="15" y="17" width="34" height="26" rx="4" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="25" cy="26" r="2.4" fill="#ffffff"/>
+  <path d="M18 39.5 26 31l6.4 6.4L36 34l7 7" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="44" cy="46" r="9" fill="#ffffff"/>
+  <circle cx="39.5" cy="46" r="1.5" fill="#1f6fb8"/>
+  <circle cx="44" cy="46" r="1.5" fill="#1f6fb8"/>
+  <circle cx="48.5" cy="46" r="1.5" fill="#1f6fb8"/>
+</svg>

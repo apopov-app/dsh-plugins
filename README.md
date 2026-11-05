@@ -1,7 +1,8 @@
 # DSH-плагины
 
 Плагины для DeepSeek Harness Desktop: голосовой режим, анонимные диалоги,
-удаление сессий и память агента. Всё работает локально, без облака, и ставится из npm.
+удаление сессий, действия с картинками и память агента. Всё работает локально, без облака,
+и ставится из npm.
 
 Репозиторий: <https://github.com/apopov-app/dsh-plugins> · npm-скоуп `@app-apopov`.
 
@@ -12,6 +13,7 @@
 | [`voice-assistant`](voice-assistant/README.md) | Голосовой режим: кнопка с микрофоном в диалоге, распознавание речи на устройстве, озвучка ответов, перебивание голосом, выбор голоса и темпа. |
 | [`anonymous-session`](anonymous-session/README.md) | Кнопка «Новая анонимная сессия»: обычный диалог, но без выбора папки проекта. |
 | [`delete-session`](delete-session/README.md) | Пункт «Удалить диалог навсегда» в меню сессии — стирает журнал без возможности восстановить. |
+| [`image-actions`](image-actions/README.md) | Меню на полноэкранном просмотре картинки: копировать в буфер, сохранить в «Загрузки», показать в Finder, скопировать путь или ссылку. |
 | [`engram-memory`](engram-memory/README.md) | Память агента: сохраняет решения и находки, ищет их в новых диалогах; память проекта лежит в самой папке и переезжает вместе с ней, плюс общий слой для всех проектов. |
 
 ## Установка
@@ -22,6 +24,8 @@
 dsh plugin --profile desktop add @app-apopov/dsh-voice-assistant
 dsh plugin --profile desktop add @app-apopov/dsh-anonymous-session
 dsh plugin --profile desktop add @app-apopov/dsh-delete-session
+# image-actions пока не опубликован — поставьте ссылкой на папку:
+# dsh plugin --profile desktop add link:/path/to/dsh-plugins/image-actions
 dsh plugin --profile desktop add @app-apopov/dsh-engram-memory
 ```
 
@@ -43,6 +47,10 @@ dsh plugin --profile desktop add @app-apopov/dsh-engram-memory
 
 **delete-session** — меню «...» у строки диалога → «Удалить диалог навсегда». Удаление требует
 второго клика и необратимо.
+
+**image-actions** — откройте картинку в диалоге на весь экран: рядом с крестиком появится «⋯»
+(он же по правому клику). В меню — копирование в буфер, сохранение в `~/Downloads/DSH Images`,
+показ в Finder и копирование пути или ссылки. ⌘C копирует, ⌘S сохраняет.
 
 **engram-memory** — нужен установленный [`engram`](https://github.com/Gentleman-Programming/engram)
 (`brew install gentleman-programming/tap/engram`). Дальше ничего настраивать не нужно: агент сам

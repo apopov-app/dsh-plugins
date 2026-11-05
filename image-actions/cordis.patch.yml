@@ -1,0 +1,3 @@
+- insert:
+    - id: image-actions
+      name: '@app-apopov/dsh-image-actions'

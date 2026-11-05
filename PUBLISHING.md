@@ -5,7 +5,9 @@
 
 ## Пакеты в npm
 
-Четыре плагина опубликованы под scope `@app-apopov` (организация `app-apopov`).
+Четыре плагина опубликованы под scope `@app-apopov` (организация `app-apopov`). Новый
+`@app-apopov/dsh-image-actions` пока живёт только в репозитории — его версия
+в таблице указана для первой публикации.
 
 | Пакет | Версия |
 |---|---|
@@ -13,6 +15,7 @@
 | `@app-apopov/dsh-voice-assistant` | 0.1.0 |
 | `@app-apopov/dsh-delete-session` | 0.1.0 |
 | `@app-apopov/dsh-engram-memory` | 0.2.2 |
+| `@app-apopov/dsh-image-actions` | 0.1.0 (не опубликован) |
 
 Проверка состава перед публикацией: `npm pack --dry-run` в папке плагина. Поле `files`
 перечисляет только нужное — `node_modules` и служебные файлы в пакет не попадают.
