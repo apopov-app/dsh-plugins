@@ -24,8 +24,7 @@
 dsh plugin --profile desktop add @app-apopov/dsh-voice-assistant
 dsh plugin --profile desktop add @app-apopov/dsh-anonymous-session
 dsh plugin --profile desktop add @app-apopov/dsh-delete-session
-# image-actions пока не опубликован — поставьте ссылкой на папку:
-# dsh plugin --profile desktop add link:/path/to/dsh-plugins/image-actions
+dsh plugin --profile desktop add @app-apopov/dsh-image-actions
 dsh plugin --profile desktop add @app-apopov/dsh-engram-memory
 ```
 
