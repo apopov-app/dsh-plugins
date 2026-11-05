@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Agent memory",
+    "description": "Project-scoped memory backed by Engram: the agent saves decisions and findings, searches them in new sessions, and you can browse, edit or delete every entry."
+  }
+}

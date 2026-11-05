@@ -1,6 +1,6 @@
 {
   "name": "@app-apopov/dsh-engram-memory",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Project-scoped memory for DSH backed by Engram: memory_save, memory_search, memory_context and memory_delete keep each project's memory inside its own folder, and the plugin page lets you browse, edit and delete it.",
   "license": "MIT",
   "author": "apopov-app",
@@ -17,12 +17,14 @@
   },
   "exports": {
     ".": "./index.js",
-    "./client": "./client.js"
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "index.js",
     "client.js",
     "cordis.patch.yml",
+    "locale/*.json",
     "README.md",
     "LICENSE"
   ],
